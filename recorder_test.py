@@ -2,7 +2,7 @@ from time import sleep
 
 from path import path
 
-from recorder import Recorder
+from recorder import Recorder, CVCaptureConfig
 
 
 def parse_args():
@@ -29,8 +29,8 @@ if __name__ == '__main__':
     import cv
 
     args = parse_args()
-    cap = cv.CaptureFromFile(args.in_file)
-    r = Recorder(cap, args.out_file)
+    cap_config = CVCaptureConfig(args.in_file, type_='file')
+    r = Recorder(cap_config, args.out_file)
 
     print 'start recording'
     r.record()
