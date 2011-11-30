@@ -17,31 +17,30 @@ class RecorderChild(object):
         self.fps = fps
         self.cap = cap
         self.props = CVCaptureProperties(cap)
-
-        with Silence():
-            self.writer = cv.CreateVideoWriter(self.output_path, cv.CV_FOURCC('X', 'V', 'I', 'D'),
-                                            self.fps, (self.props.width, self.props.height), True)
+        self.writer = self._get_writer()
         self.state = self.STATES['STOPPED']
+
+    def _get_writer(self):
+        with Silence():
+            writer = cv.CreateVideoWriter(self.output_path, cv.CV_FOURCC('X', 'V', 'I', 'D'),
+                                            self.fps, (self.props.width, self.props.height), True)
+        return writer
 
     def main(self):
         with Silence():
             while True:
-                try:
-                    command = self.conn.get_nowait()
-                except Queue.Empty:
-                    pass
-                else:
+                if self.conn.poll():
+                    command = self.conn.recv()
                     if command == 'stop':
                         self.state = self.STATES['STOPPED']
-                        break
                     elif command == 'record':
                         self.state = self.STATES['RECORDING']
                 if self.state == self.STATES['RECORDING']:
-                    sleep(1.0 / 24)
                     cv.GrabFrame(self.cap)
                     frame = cv.RetrieveFrame(self.cap)
                     if frame:
                         cv.WriteFrame(self.writer, frame)
+                    sleep(1.0 / 24)
 
 
 class Recorder(object):
@@ -49,17 +48,18 @@ class Recorder(object):
         self.output_path = path(output_path)
         self.fps = fps
         self.cap = cap
-        self.conn = multiprocessing.Queue()
+        #self.conn = multiprocessing.Queue()
+        self.conn, self.child_conn = multiprocessing.Pipe()
 
         p = multiprocessing.Process(target=self._start_child)
         p.start()
 
     def _start_child(self):
-        child = RecorderChild(self.conn, self.cap, self.output_path, self.fps)
+        child = RecorderChild(self.child_conn, self.cap, self.output_path, self.fps)
         child.main()
 
     def record(self):
-        self.conn.put('record')
+        self.conn.send('record')
 
     def stop(self):
-        self.conn.put('stop')
+        self.conn.send('stop')
