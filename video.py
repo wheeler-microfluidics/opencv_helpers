@@ -59,12 +59,21 @@ def copy_image_to_video(in_file, out_file, frame_count, fourcc='XVID', fps=24):
         cv.WriteFrame(writer, frame)
 
 
-
-def copy_video(cap, output_path):
+def copy_video(cap, output_path, frame_count=None, offset=0):
     props = CVCaptureProperties(cap)
+    if frame_count is None:
+        frame_count = props.frame_count
+    frame_count = min(props.frame_count, frame_count)
+    skip_frames = min(offset, frame_count)
+    print 'frame_count, skip_frames:', frame_count, skip_frames
+
     writer = cv.CreateVideoWriter(output_path, cv.CV_FOURCC(*props.fourcc),
                                     props.fps, (props.width, props.height), True)
-    for i in range(props.frame_count):
+
+    for skip_frames in range(offset):
+        cv.GrabFrame(cap)
+
+    for i in range(frame_count):
         cv.GrabFrame(cap)
         frame = cv.RetrieveFrame(cap)
         cv.WriteFrame(writer, frame)
