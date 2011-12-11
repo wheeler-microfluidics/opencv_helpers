@@ -42,7 +42,7 @@ class CVCaptureConfig(object):
         cap = self.create_capture()
         result = cv.GrabFrame(cap)
         del cap
-        return result
+        return (result == 0)
 
 
 class RecorderChild(object):
@@ -70,9 +70,11 @@ class RecorderChild(object):
                 if self.conn.poll():
                     command = self.conn.recv()
                     if command == 'stop':
+                        print 'stop recording'
                         self.state = self.STATES['STOPPED']
                         break
                     elif command == 'record':
+                        print 'recording'
                         self.state = self.STATES['RECORDING']
                 if self.state == self.STATES['RECORDING']:
                     cv.GrabFrame(self.cap)
@@ -111,5 +113,6 @@ class Recorder(object):
 
     def stop(self):
         self.conn.send('stop')
-        self.child.join()
+        if self.child:
+            self.child.join()
         self.child = None
