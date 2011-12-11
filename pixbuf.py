@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 import gtk
-import cv
+from safe_cv import cv
 import numpy as np
 from path import path
 

@@ -1,7 +1,7 @@
 import re
 import sys
 
-import cv
+from safe_cv import cv
 
 
 

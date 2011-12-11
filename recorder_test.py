@@ -26,7 +26,7 @@ Copy n seconds from source video to destination.""",
 
 
 if __name__ == '__main__':
-    import cv
+    from safe_cv import cv
 
     args = parse_args()
     cap_config = CVCaptureConfig(args.in_file, type_='file')

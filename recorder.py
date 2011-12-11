@@ -65,23 +65,23 @@ class RecorderChild(object):
         return writer
 
     def main(self):
-        with Silence():
-            while True:
-                if self.conn.poll():
-                    command = self.conn.recv()
-                    if command == 'stop':
-                        print 'stop recording'
-                        self.state = self.STATES['STOPPED']
-                        break
-                    elif command == 'record':
-                        print 'recording'
-                        self.state = self.STATES['RECORDING']
-                if self.state == self.STATES['RECORDING']:
-                    cv.GrabFrame(self.cap)
-                    frame = cv.RetrieveFrame(self.cap)
-                    if frame:
-                        cv.WriteFrame(self.writer, frame)
-                    sleep(1.0 / 24)
+        #with Silence():
+        while True:
+            if self.conn.poll():
+                command = self.conn.recv()
+                if command == 'stop':
+                    print 'stop recording'
+                    self.state = self.STATES['STOPPED']
+                    break
+                elif command == 'record':
+                    print 'recording'
+                    self.state = self.STATES['RECORDING']
+            if self.state == self.STATES['RECORDING']:
+                cv.GrabFrame(self.cap)
+                frame = cv.RetrieveFrame(self.cap)
+                if frame:
+                    cv.WriteFrame(self.writer, frame)
+                sleep(1.0 / 24)
 
 
 class Recorder(object):
