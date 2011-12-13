@@ -3,6 +3,7 @@ from time import sleep
 import Queue
 import multiprocessing
 from collections import namedtuple
+from datetime import datetime, timedelta
 
 from path import path
 
@@ -57,6 +58,14 @@ class RecorderChild(object):
         self.props = CVCaptureProperties(self.cap)
         self.writer = self._get_writer()
         self.state = self.STATES['STOPPED']
+        self.frame_period = 1.0 / 24 * 0.995
+        self.quarter_frame_period = 0.5 * self.frame_period
+        self.width = 640
+        self.height = 480
+        cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_WIDTH, self.width)
+        cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_HEIGHT, self.height)
+        
+        cv.GrabFrame(self.cap)
 
     def _get_writer(self):
         with Silence():
@@ -66,6 +75,8 @@ class RecorderChild(object):
 
     def main(self):
         #with Silence():
+        times = [datetime.now()]
+        prev_frame = None
         while True:
             if self.conn.poll():
                 command = self.conn.recv()
@@ -77,11 +88,36 @@ class RecorderChild(object):
                     print 'recording'
                     self.state = self.STATES['RECORDING']
             if self.state == self.STATES['RECORDING']:
+                #if (datetime.now() - times[-1]).total_seconds() > self.frame_period:
+                times.append(datetime.now())
                 cv.GrabFrame(self.cap)
                 frame = cv.RetrieveFrame(self.cap)
                 if frame:
                     cv.WriteFrame(self.writer, frame)
-                sleep(1.0 / 24)
+                    prev_frame = frame
+                else:
+                    cv.WriteFrame(self.writer, prev_frame)
+                sleep_time = (timedelta(seconds=self.frame_period) - (datetime.now() - times[-1])).total_seconds()
+                if sleep_time > 0:
+                    sleep(sleep_time)
+
+        from pprint import pprint
+        
+        del times[0]
+        print 'captured %d frames' % len(times)
+        print '  first frame: %s' % times[0]
+        print '  last frame:  %s' % times[-1]
+        print '  recording length: %s' % (times[-1] - times[0]).total_seconds()
+
+        import numpy as np
+
+        frame_lengths = np.array([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
+        print '  Frame rate info:'
+        print '    mean: %s' % (1.0 / frame_lengths.mean())
+        print '    max:  %s' % (1.0 / frame_lengths.min())
+        print '    min:  %s' % (1.0 / frame_lengths.max())
+
+        #pprint([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
 
 
 class Recorder(object):
@@ -109,9 +145,11 @@ class Recorder(object):
     def record(self):
         if self.child is None:
             self.child = self._launch_child()
+        print 'request recording: %s' % datetime.now()
         self.conn.send('record')
 
     def stop(self):
+        print 'request stop: %s' % datetime.now()
         self.conn.send('stop')
         if self.child:
             self.child.join()

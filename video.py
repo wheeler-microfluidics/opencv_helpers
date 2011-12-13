@@ -2,7 +2,7 @@ import re
 import sys
 
 from safe_cv import cv
-
+from silence import Silence
 
 
 class CVCaptureProperties(object):
@@ -15,7 +15,9 @@ class CVCaptureProperties(object):
             setattr(self, k, self.props[k])
 
     def _get_props(self):
-        return dict([(k, cv.GetCaptureProperty(self.cap, v)) for k, v in self.captureprop_name2code.iteritems()])
+        with Silence():
+            values = dict([(k, cv.GetCaptureProperty(self.cap, v)) for k, v in self.captureprop_name2code.iteritems()])
+        return values
 
     @property
     def frame_count(self):
