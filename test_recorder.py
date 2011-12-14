@@ -4,6 +4,7 @@ from time import sleep
 from path import path
 
 from recorder import Recorder, CVCaptureConfig
+from camera_capture import CAMVideoCapture, CVCameraCapture
 
 
 def parse_args():
@@ -26,8 +27,12 @@ Copy n seconds from webcam to destination.""",
 if __name__ == '__main__':
     args = parse_args()
 
-    cap_config = CVCaptureConfig(args.camera_id, type_='camera')
-    r = Recorder(cap_config, args.out_file, auto_init=True)
+    cam_cap = CAMVideoCapture()
+    #cam_cap = CVCameraCapture()
+    r = Recorder(args.out_file, cam_cap, fps=24, auto_init=True)
+    sleep(3.)
     r.record()
     sleep(args.seconds)
     r.stop()
+    print 'DONE'
+    del cam_cap

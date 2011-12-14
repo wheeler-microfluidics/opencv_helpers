@@ -4,6 +4,7 @@ import Queue
 import multiprocessing
 from collections import namedtuple
 from datetime import datetime, timedelta
+import os
 
 from path import path
 
@@ -49,28 +50,31 @@ class CVCaptureConfig(object):
 class RecorderChild(object):
     STATES = dict(RECORDING=10, STOPPED=20)
 
-    def __init__(self, conn, cap_config, output_path, fps=24):
+    def __init__(self, conn, output_path, cam_cap, fps=24):
         self.conn = conn
         self.output_path = path(output_path)
         self.fps = fps
-        self.cap_config = cap_config
-        self.cap = self.cap_config.create_capture()
-        self.props = CVCaptureProperties(self.cap)
+        self.cam_cap = cam_cap
+        self.cam_cap.init_capture()
         self.writer = self._get_writer()
         self.state = self.STATES['STOPPED']
-        self.frame_period = 1.0 / 24 * 0.995
-        self.quarter_frame_period = 0.5 * self.frame_period
-        self.width = 640
-        self.height = 480
-        cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_WIDTH, self.width)
-        cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_HEIGHT, self.height)
+        #self.frame_period = 1.0 / 24 * 0.995
+        self.frame_period = 1.0 / self.fps * 0.995
         
-        cv.GrabFrame(self.cap)
-
     def _get_writer(self):
-        with Silence():
-            writer = cv.CreateVideoWriter(self.output_path, cv.CV_FOURCC('X', 'V', 'I', 'D'),
-                                            self.fps, (self.props.width, self.props.height), True)
+        if os.name == 'nt':
+            codec = 'I420'
+            #codec = 'FFV1'
+            #codec = 'XVID'
+            #codec = 'MJPG'
+            #codec = 'PIM1'
+            #codec = 'DIVX'
+            writer = cv.CreateVideoWriter(self.output_path, cv.CV_FOURCC(*codec),
+                self.fps, self.cam_cap.dimensions, True)
+        else:
+            codec = 'XVID'
+            writer = cv.CreateVideoWriter(self.output_path, cv.CV_FOURCC(*codec),
+            self.fps, self.cam_cap.dimensions, True)
         return writer
 
     def main(self):
@@ -90,8 +94,7 @@ class RecorderChild(object):
             if self.state == self.STATES['RECORDING']:
                 #if (datetime.now() - times[-1]).total_seconds() > self.frame_period:
                 times.append(datetime.now())
-                cv.GrabFrame(self.cap)
-                frame = cv.RetrieveFrame(self.cap)
+                frame = self.cam_cap.get_frame()
                 if frame:
                     cv.WriteFrame(self.writer, frame)
                     prev_frame = frame
@@ -100,6 +103,8 @@ class RecorderChild(object):
                 sleep_time = (timedelta(seconds=self.frame_period) - (datetime.now() - times[-1])).total_seconds()
                 if sleep_time > 0:
                     sleep(sleep_time)
+                else:
+                    print 'warning: recording is lagging'
 
         from pprint import pprint
         
@@ -116,17 +121,14 @@ class RecorderChild(object):
         print '    mean: %s' % (1.0 / frame_lengths.mean())
         print '    max:  %s' % (1.0 / frame_lengths.min())
         print '    min:  %s' % (1.0 / frame_lengths.max())
-
-        #pprint([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
+        return
 
 
 class Recorder(object):
-    def __init__(self, cap_config, output_path, fps=24, auto_init=False):
+    def __init__(self, output_path, cam_cap, fps=24, auto_init=False):
         self.output_path = path(output_path)
         self.fps = fps
-        # Create a CVCaptureConfig object, since a Capture instance cannot
-        # be pickled.  The RecorderChild will create a Capture instance.
-        self.cap_config = cap_config
+        self.cam_cap = cam_cap
         self.conn, self.child_conn = multiprocessing.Pipe()
         if auto_init:
             self.child = self._launch_child()
@@ -139,7 +141,7 @@ class Recorder(object):
         return p
 
     def _start_child(self):
-        child = RecorderChild(self.child_conn, self.cap_config, self.output_path, self.fps)
+        child = RecorderChild(self.child_conn, self.output_path, self.cam_cap, self.fps)
         child.main()
 
     def record(self):
@@ -153,4 +155,4 @@ class Recorder(object):
         self.conn.send('stop')
         if self.child:
             self.child.join()
-        self.child = None
+        del self.child
