@@ -4,7 +4,7 @@ from time import sleep
 from path import path
 
 from recorder import Recorder, CVCaptureConfig
-from camera_capture import CAMVideoCapture, CVCameraCapture
+from camera_capture import CameraCapture
 
 
 def parse_args():
@@ -27,10 +27,12 @@ Copy n seconds from webcam to destination.""",
 if __name__ == '__main__':
     args = parse_args()
 
-    cam_cap = CAMVideoCapture()
-    #cam_cap = CVCameraCapture()
-    r = Recorder(args.out_file, cam_cap, fps=24, auto_init=True)
-    sleep(3.)
+    cam_cap = CameraCapture()
+    info = cam_cap.get_framerate_info()
+    target_fps = 0.95 * info.mean_framerate
+    print 'FPS: %.2f (%.2f)' % (target_fps, info.mean_framerate)
+
+    r = Recorder(args.out_file, cam_cap, fps=target_fps, auto_init=True)
     r.record()
     sleep(args.seconds)
     r.stop()

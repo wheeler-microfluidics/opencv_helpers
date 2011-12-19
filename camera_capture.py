@@ -1,15 +1,75 @@
+import os
+from datetime import datetime, timedelta
+
+import numpy as np
+
 from video import CVCaptureProperties
 from recorder import CVCaptureConfig, cv
-from videocapture.VideoCapture import Device
 
 
-class CameraCapture(object):
+class FrameRateInfo(object):
+    def __init__(self, cam_cap):
+        self.cam_cap = cam_cap
+        self.times, self.frame_lengths = self.test_framerate()
+
+    def test_framerate(self, frame_count=50):
+        times = [datetime.now()]
+        for i in range(frame_count):
+            self.cam_cap.get_frame()
+            times.append(datetime.now())
+        del times[0]
+
+        frame_lengths = np.array([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
+
+        return np.array(times), frame_lengths
+
+    def get_summary(self):
+        print 'captured %d frames' % len(self.times)
+        print '  first frame: %s' % self.times[0]
+        print '  last frame:  %s' % self.times[-1]
+        print '  recording length: %s' % (self.times[-1] - self.times[0]).total_seconds()
+
+        print '  Frame rate info:'
+        print '    mean: %s' % self.mean_framerate
+        print '    max:  %s' % self.max_framerate
+        print '    min:  %s' % self.min_framerate
+
+    @property
+    def mean_framerate(self):
+        return 1. / self.frame_lengths.mean()
+
+    @property
+    def min_framerate(self):
+        return 1. / self.frame_lengths.max()
+
+    @property
+    def max_framerate(self):
+        return 1. / self.frame_lengths.min()
+
+
+class CameraCaptureBase(object):
     def __init__(self, auto_init=False):
+        self.initialized = False
         if auto_init:
             self.init_capture()
         self._dimensions = None
 
+    def release_capture(self):
+        if self.initialized:
+            result = self._release_capture()
+            self.initialized = False
+            return result
+        return False
+
+    def _release_capture(self):
+        raise NotImplementedError
+
     def init_capture(self):
+        result = self._init_capture()
+        self.initialized = True
+        return result
+
+    def _init_capture(self):
         raise NotImplementedError
 
     def get_frame(self):
@@ -19,8 +79,24 @@ class CameraCapture(object):
     def dimensions(self):
         raise NotImplementedError
 
+    def get_framerate_info(self):
+        if not self.initialized:
+            cleanup_required = True
+            self.init_capture()
+        else:
+            cleanup_required = False
 
-class CVCameraCapture(CameraCapture):
+        info = FrameRateInfo(self)
+
+        if cleanup_required:
+            self.release_capture()
+        return info
+
+    def __del__(self):
+        self.release_capture()
+
+
+class CVCameraCapture(CameraCaptureBase):
     def __init__(self, id=None, auto_init=False):
         if id is None:
             self.id = -1
@@ -31,10 +107,13 @@ class CVCameraCapture(CameraCapture):
         self.props = None
         super(CVCameraCapture, self).__init__(auto_init=auto_init)
 
-    def init_capture(self):
+    def _release_capture(self):
+        if self.cap:
+            del self.cap
+
+    def _init_capture(self):
         self.cap = self.cap_config.create_capture()
-        for i in range(100):
-            cv.GrabFrame(self.cap)
+        #self._set_dimensions([640, 480])
 
     def get_frame(self):
         cv.GrabFrame(self.cap)
@@ -44,6 +123,11 @@ class CVCameraCapture(CameraCapture):
         else:
             return None
 
+    def _set_dimensions(self, dimensions):
+        cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_WIDTH, dimensions[0])
+        cv.SetCaptureProperty(self.cap, cv.CV_CAP_PROP_FRAME_HEIGHT, dimensions[1])
+        self._dimensions = dimensions
+
     @property
     def dimensions(self):
         if self._dimensions is None:
@@ -52,7 +136,7 @@ class CVCameraCapture(CameraCapture):
         return self._dimensions
 
 
-class CAMVideoCapture(CameraCapture):
+class CAMVideoCapture(CameraCaptureBase):
     def __init__(self, id=None, auto_init=False):
         if id is None:
             self.id = 0
@@ -61,7 +145,9 @@ class CAMVideoCapture(CameraCapture):
         self.device = None
         super(CAMVideoCapture, self).__init__(auto_init=auto_init)
 
-    def init_capture(self):
+    def _init_capture(self):
+        from videocapture.VideoCapture import Device
+
         self.device = Device()
         for i in range(100):
             self.device.getImage()
@@ -78,3 +164,8 @@ class CAMVideoCapture(CameraCapture):
             pi = self.device.getImage()
             self._dimensions = pi.size
         return self._dimensions
+
+if os.name == 'nt':
+    CameraCapture = CAMVideoCapture
+else:
+    CameraCapture = CVCameraCapture

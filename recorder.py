@@ -59,7 +59,7 @@ class RecorderChild(object):
         self.writer = self._get_writer()
         self.state = self.STATES['STOPPED']
         #self.frame_period = 1.0 / 24 * 0.995
-        self.frame_period = 1.0 / self.fps * 0.995
+        self.frame_period = 1.0 / self.fps
         
     def _get_writer(self):
         if os.name == 'nt':
@@ -73,14 +73,26 @@ class RecorderChild(object):
                 self.fps, self.cam_cap.dimensions, True)
         else:
             codec = 'XVID'
+
+            import numpy as np
+
+            #dimensions = np.array(np.array(self.cam_cap.dimensions) * 0.25, dtype=int)
+            dimensions = np.array(np.array(self.cam_cap.dimensions), dtype=int)
             writer = cv.CreateVideoWriter(self.output_path, cv.CV_FOURCC(*codec),
-            self.fps, self.cam_cap.dimensions, True)
+                                            self.fps, tuple(dimensions), True)
         return writer
 
     def main(self):
+        import numpy as np
+
         #with Silence():
         times = [datetime.now()]
         prev_frame = None
+        record_id = 0
+
+        self.cam_cap.get_framerate_info()
+        self.conn.send('ready')
+
         while True:
             if self.conn.poll():
                 command = self.conn.recv()
@@ -100,11 +112,20 @@ class RecorderChild(object):
                     prev_frame = frame
                 else:
                     cv.WriteFrame(self.writer, prev_frame)
-                sleep_time = (timedelta(seconds=self.frame_period) - (datetime.now() - times[-1])).total_seconds()
+                #sleep_time = (timedelta(seconds=self.frame_period) - (datetime.now() - times[-1])).total_seconds()
+
+                #record_times[record_id] = (datetime.now() - times[-1]).total_seconds()
+                record_time = (datetime.now() - times[-1]).total_seconds()
+                #print 'processing frame:', record_time
+                sleep_time = self.frame_period - record_time
+                #sleep_time = 0.001
+                #record_id = (record_id + 1) % 5
+
                 if sleep_time > 0:
                     sleep(sleep_time)
                 else:
-                    print 'warning: recording is lagging'
+                    pass
+                    #print 'warning: recording is lagging'
 
         from pprint import pprint
         
@@ -114,13 +135,16 @@ class RecorderChild(object):
         print '  last frame:  %s' % times[-1]
         print '  recording length: %s' % (times[-1] - times[0]).total_seconds()
 
-        import numpy as np
 
         frame_lengths = np.array([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
         print '  Frame rate info:'
         print '    mean: %s' % (1.0 / frame_lengths.mean())
         print '    max:  %s' % (1.0 / frame_lengths.min())
         print '    min:  %s' % (1.0 / frame_lengths.max())
+
+        from pprint import pprint
+
+        pprint(frame_lengths)
         return
 
 
@@ -138,6 +162,15 @@ class Recorder(object):
     def _launch_child(self):
         p = multiprocessing.Process(target=self._start_child)
         p.start()
+        while True:
+            if self.conn.poll():
+                response = self.conn.recv()
+                if response == 'ready':
+                    break
+                else:
+                    raise Exception('Invalid response from RecorderChild')
+            sleep(1. / 100)
+        print 'RecorderChild is ready'
         return p
 
     def _start_child(self):
