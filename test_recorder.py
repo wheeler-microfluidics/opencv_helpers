@@ -29,8 +29,7 @@ if __name__ == '__main__':
 
     cam_cap = CameraCapture()
     info = cam_cap.get_framerate_info()
-    target_fps = 0.95 * info.mean_framerate
-    print 'FPS: %.2f (%.2f)' % (target_fps, info.mean_framerate)
+    target_fps = min(24., 0.95 * info.mean_framerate)
 
     r = Recorder(args.out_file, cam_cap, fps=target_fps, auto_init=True)
     r.record()

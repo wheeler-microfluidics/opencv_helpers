@@ -6,7 +6,7 @@ from collections import namedtuple
 from datetime import datetime, timedelta
 import os
 
-from path import path
+from path import path, pickle
 
 from video import cv, CVCaptureProperties
 from silence import Silence
@@ -58,7 +58,6 @@ class RecorderChild(object):
         self.cam_cap.init_capture()
         self.writer = self._get_writer()
         self.state = self.STATES['STOPPED']
-        #self.frame_period = 1.0 / 24 * 0.995
         self.frame_period = 1.0 / self.fps
         
     def _get_writer(self):
@@ -87,10 +86,18 @@ class RecorderChild(object):
 
         #with Silence():
         times = [datetime.now()]
+        sleep_times = []
+        record_times = []
         prev_frame = None
-        record_id = 0
 
         self.cam_cap.get_framerate_info()
+        frame_count = 0
+        record_id = 0
+        avg_count = 1
+        record_times_smooth = np.array(avg_count * [0.1 * self.frame_period])
+        frame_periods = np.array(avg_count * [0.95 * self.frame_period])
+        print 'Target FPS: %.4f' % (self.fps)
+
         self.conn.send('ready')
 
         while True:
@@ -104,28 +111,28 @@ class RecorderChild(object):
                     print 'recording'
                     self.state = self.STATES['RECORDING']
             if self.state == self.STATES['RECORDING']:
-                #if (datetime.now() - times[-1]).total_seconds() > self.frame_period:
                 times.append(datetime.now())
+                frame_periods[record_id] = (times[-1] - times[-2]).total_seconds()
                 frame = self.cam_cap.get_frame()
                 if frame:
                     cv.WriteFrame(self.writer, frame)
                     prev_frame = frame
                 else:
                     cv.WriteFrame(self.writer, prev_frame)
-                #sleep_time = (timedelta(seconds=self.frame_period) - (datetime.now() - times[-1])).total_seconds()
+                record_times_smooth[record_id] = (datetime.now() - times[-1]).total_seconds()
+                sleep_time = self.frame_period - record_times_smooth[record_id]\
+                                + 0.5 * (self.frame_period - frame_periods[record_id])
 
-                #record_times[record_id] = (datetime.now() - times[-1]).total_seconds()
-                record_time = (datetime.now() - times[-1]).total_seconds()
-                #print 'processing frame:', record_time
-                sleep_time = self.frame_period - record_time
-                #sleep_time = 0.001
-                #record_id = (record_id + 1) % 5
+                sleep_times.append(sleep_time)
+                record_times.append(record_times_smooth[record_id])
+                #sleep_time *= 1.5
+                record_id = (record_id + 1) % avg_count
 
                 if sleep_time > 0:
                     sleep(sleep_time)
                 else:
-                    pass
-                    #print 'warning: recording is lagging'
+                    print 'warning: recording is lagging'
+                frame_count += 1
 
         from pprint import pprint
         
@@ -145,6 +152,9 @@ class RecorderChild(object):
         from pprint import pprint
 
         pprint(frame_lengths)
+
+        from path import path
+        path('frame_lengths.dat').pickle_dump([self.fps, frame_lengths, times, sleep_times, record_times], protocol=pickle.HIGHEST_PROTOCOL)
         return
 
 
