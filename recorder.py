@@ -47,6 +47,41 @@ class CVCaptureConfig(object):
         return (result == 0)
 
 
+class RecorderLog(object):
+    def __init__(self, fps):
+        self.fps = fps
+        self.times = [datetime.now()]
+        self.sleep_times = []
+        self.record_times = []
+        self.frame_lengths = []
+
+    def print_summary(self):
+        from pprint import pprint
+
+        print 'captured %d frames' % len(self.times)
+        print '  first frame: %s' % self.times[0]
+        print '  last frame:  %s' % self.times[-1]
+        print '  recording length: %s' % (self.times[-1] - self.times[0]).total_seconds()
+
+        print '  Frame rate info:'
+        print '    mean: %s' % (1.0 / self.frame_lengths.mean())
+        print '    max:  %s' % (1.0 / self.frame_lengths.min())
+        print '    min:  %s' % (1.0 / self.frame_lengths.max())
+
+        pprint(self.frame_lengths)
+
+    def save(self, out_file):
+        out_path = path(out_file)
+        out_path.pickle_dump([self.fps, self.frame_lengths, self.times, self.sleep_times, self.record_times], protocol=pickle.HIGHEST_PROTOCOL)
+
+    def finish(self):
+        import numpy as np
+
+        del self.times[0]
+
+        self.frame_lengths = np.array([(self.times[i + 1] - self.times[i]).total_seconds()  for i in range(len(self.times) - 1)])
+
+
 class RecorderChild(object):
     STATES = dict(RECORDING=10, STOPPED=20)
 
@@ -85,9 +120,6 @@ class RecorderChild(object):
         import numpy as np
 
         #with Silence():
-        times = [datetime.now()]
-        sleep_times = []
-        record_times = []
         prev_frame = None
 
         self.cam_cap.get_framerate_info()
@@ -97,6 +129,23 @@ class RecorderChild(object):
         record_times_smooth = np.array(avg_count * [0.1 * self.frame_period])
         frame_periods = np.array(avg_count * [0.95 * self.frame_period])
         print 'Target FPS: %.4f' % (self.fps)
+
+        log = RecorderLog(self.fps)
+
+        iter_count = 1000
+        extra_start = datetime.now()
+        for i in range(iter_count):
+            log.sleep_times.append(1)
+            log.record_times.append(1)
+            log.times.append(1)
+            frame_count += 1
+            record_id = (record_id + 1) % avg_count
+        log.sleep_times = []
+        log.record_times = []
+        del log.times[1:]
+        record_id = 0
+        frame_count = 0
+        extra_time = (datetime.now() - extra_start).total_seconds() / float(iter_count)
 
         self.conn.send('ready')
 
@@ -111,21 +160,25 @@ class RecorderChild(object):
                     print 'recording'
                     self.state = self.STATES['RECORDING']
             if self.state == self.STATES['RECORDING']:
-                times.append(datetime.now())
-                frame_periods[record_id] = (times[-1] - times[-2]).total_seconds()
+                log.times.append(datetime.now())
+                frame_periods[record_id] = (log.times[-1] - log.times[-2]).total_seconds()
                 frame = self.cam_cap.get_frame()
                 if frame:
                     cv.WriteFrame(self.writer, frame)
                     prev_frame = frame
                 else:
                     cv.WriteFrame(self.writer, prev_frame)
-                record_times_smooth[record_id] = (datetime.now() - times[-1]).total_seconds()
-                sleep_time = self.frame_period - record_times_smooth[record_id]\
-                                + 0.5 * (self.frame_period - frame_periods[record_id])
+                record_times_smooth[record_id] = (datetime.now() - log.times[-1]).total_seconds()
+                if frame_count > 10:
+                    sleep_time = self.frame_period - record_times_smooth[record_id]\
+                                    + 0.5 * (self.frame_period - frame_periods.mean())\
+                                    - extra_time
+                else:
+                    sleep_time = self.frame_period - record_times_smooth[record_id]\
+                                    - extra_time
 
-                sleep_times.append(sleep_time)
-                record_times.append(record_times_smooth[record_id])
-                #sleep_time *= 1.5
+                log.sleep_times.append(sleep_time)
+                log.record_times.append(record_times_smooth[record_id])
                 record_id = (record_id + 1) % avg_count
 
                 if sleep_time > 0:
@@ -134,27 +187,10 @@ class RecorderChild(object):
                     print 'warning: recording is lagging'
                 frame_count += 1
 
-        from pprint import pprint
+        log.finish()
+        log.print_summary()
+        log.save('frame_lengths.dat')
         
-        del times[0]
-        print 'captured %d frames' % len(times)
-        print '  first frame: %s' % times[0]
-        print '  last frame:  %s' % times[-1]
-        print '  recording length: %s' % (times[-1] - times[0]).total_seconds()
-
-
-        frame_lengths = np.array([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
-        print '  Frame rate info:'
-        print '    mean: %s' % (1.0 / frame_lengths.mean())
-        print '    max:  %s' % (1.0 / frame_lengths.min())
-        print '    min:  %s' % (1.0 / frame_lengths.max())
-
-        from pprint import pprint
-
-        pprint(frame_lengths)
-
-        from path import path
-        path('frame_lengths.dat').pickle_dump([self.fps, frame_lengths, times, sleep_times, record_times], protocol=pickle.HIGHEST_PROTOCOL)
         return
 
 
