@@ -191,39 +191,40 @@ class RecorderChild(object):
         return
 
 
-
 class RecordFrameRateInfo(FrameRateInfo):
     def __init__(self, cam_cap, codec=None):
         self.codec = codec
         super(RecordFrameRateInfo, self).__init__(cam_cap)
 
     def test_framerate(self, frame_count=50):
-        if self.codec is None:
-            fourcc = -1
-        else:
-            fourcc = cv.CV_FOURCC(*self.codec)
-        f_handle, output_path = tempfile.mkstemp(suffix='.avi') 
-        output_path = path(output_path)
-        times = []
-        try:
-            writer = cv.CreateVideoWriter(output_path, fourcc, 24,
-                                                self.cam_cap.dimensions, True)
-            prev_frame = None
-            # Grab and write frames as fast as possible (no delay between
-            # frames) and record times of frame grabs.
-            for i in range(frame_count):
-                frame = self.cam_cap.get_frame()
-                if frame:
-                    cv.WriteFrame(writer, frame)
-                    prev_frame = frame
-                else:
-                    cv.WriteFrame(writer, prev_frame)
-                self.cam_cap.get_frame()
-                times.append(datetime.now())
+        with Silence():
+            if self.codec is None:
+                fourcc = -1
+            else:
+                fourcc = cv.CV_FOURCC(*self.codec)
+            f_handle, output_path = tempfile.mkstemp(suffix='.avi') 
+            output_path = path(output_path)
+            times = []
+            writer = None
+            try:
+                writer = cv.CreateVideoWriter(output_path, fourcc, 24,
+                                                    self.cam_cap.dimensions, True)
+                prev_frame = None
+                # Grab and write frames as fast as possible (no delay between
+                # frames) and record times of frame grabs.
+                for i in range(frame_count):
+                    frame = self.cam_cap.get_frame()
+                    if frame:
+                        cv.WriteFrame(writer, frame)
+                        prev_frame = frame
+                    else:
+                        cv.WriteFrame(writer, prev_frame)
+                    self.cam_cap.get_frame()
+                    times.append(datetime.now())
 
-            frame_lengths = np.array([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
-        finally:
-            output_path.remove()
+                frame_lengths = np.array([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
+            finally:
+                output_path.remove()
 
         return np.array(times), frame_lengths
 

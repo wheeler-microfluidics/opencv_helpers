@@ -3,7 +3,7 @@ from time import sleep
 
 from path import path
 
-from recorder import Recorder, CVCaptureConfig
+from recorder import Recorder, CVCaptureConfig, RecordFrameRateInfo
 from camera_capture import CameraCapture
 from codec import CodecTest, get_supported_codecs
 
@@ -47,10 +47,6 @@ preferred_codecs = ['XVID', 'I420']
 if __name__ == '__main__':
     args = parse_args()
 
-    cam_cap = CameraCapture()
-    info = cam_cap.get_framerate_info()
-    target_fps = min(args.fps, int(0.95 * info.mean_framerate))
-
     if args.fourcc is None:
         for c in preferred_codecs:
             if CodecTest.test_codec(c):
@@ -63,6 +59,10 @@ if __name__ == '__main__':
     elif not CodecTest.test_codec(args.fourcc):
         print 'Unsupported codec: %s\n' % args.fourcc
         raise SystemExit
+
+    cam_cap = CameraCapture()
+    info = cam_cap.get_record_framerate_info(args.fourcc)
+    target_fps = min(args.fps, int(0.95 * info.mean_framerate))
 
     r = Recorder(args.out_file, cam_cap, fps=target_fps, codec=args.fourcc, auto_init=True)
     r.record()

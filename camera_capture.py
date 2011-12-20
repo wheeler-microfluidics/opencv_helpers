@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 import numpy as np
 
 from video import CVCaptureProperties
-from recorder import CVCaptureConfig, cv
+from recorder import CVCaptureConfig, cv, RecordFrameRateInfo
 from frame_rate import FrameRateInfo
 
 
@@ -53,6 +53,19 @@ class CameraCaptureBase(object):
     def dimensions(self):
         raise NotImplementedError
 
+    def get_record_framerate_info(self, codec):
+        if not self.initialized:
+            cleanup_required = True
+            self.init_capture()
+        else:
+            cleanup_required = False
+
+        info = RecordFrameRateInfo(self, codec)
+
+        if cleanup_required:
+            self.release_capture()
+        return info
+
     def get_framerate_info(self):
         if not self.initialized:
             cleanup_required = True
@@ -82,8 +95,10 @@ class CVCameraCapture(CameraCaptureBase):
         super(CVCameraCapture, self).__init__(auto_init=auto_init)
 
     def _release_capture(self):
-        if self.cap:
+        if self.cap is not None:
             del self.cap
+        if self.props is not None:
+            del self.props
 
     def _init_capture(self):
         self.cap = self.cap_config.create_capture()
