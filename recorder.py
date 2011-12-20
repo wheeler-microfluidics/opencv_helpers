@@ -187,9 +187,11 @@ class RecorderChild(object):
                     print 'warning: recording is lagging'
                 frame_count += 1
 
+
         log.finish()
-        log.print_summary()
-        log.save('frame_lengths.dat')
+
+        # Report log back to parent process
+        self.conn.send(log)
         
         return
 
@@ -205,17 +207,21 @@ class Recorder(object):
         else:
             self.child = None
 
+    def _pipe_pull(self):
+        while True:
+            if self.conn.poll():
+                return self.conn.recv()
+            sleep(1. / 100)
+    
     def _launch_child(self):
         p = multiprocessing.Process(target=self._start_child)
         p.start()
         while True:
-            if self.conn.poll():
-                response = self.conn.recv()
-                if response == 'ready':
-                    break
-                else:
-                    raise Exception('Invalid response from RecorderChild')
-            sleep(1. / 100)
+            response = self._pipe_pull()
+            if response == 'ready':
+                break
+            else:
+                raise Exception('Invalid response from RecorderChild')
         print 'RecorderChild is ready'
         return p
 
@@ -233,5 +239,9 @@ class Recorder(object):
         print 'request stop: %s' % datetime.now()
         self.conn.send('stop')
         if self.child:
+            log = self._pipe_pull()
             self.child.join()
+        else:
+            log = None
         del self.child
+        return log

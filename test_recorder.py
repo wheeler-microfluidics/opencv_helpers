@@ -34,6 +34,9 @@ if __name__ == '__main__':
     r = Recorder(args.out_file, cam_cap, fps=target_fps, auto_init=True)
     r.record()
     sleep(args.seconds)
-    r.stop()
+    log = r.stop()
+
+    log.print_summary()
+    log.save(args.out_file.parent.joinpath('%s.dat' % args.out_file.namebase))
     print 'DONE'
     del cam_cap
