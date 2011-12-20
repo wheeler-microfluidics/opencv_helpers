@@ -15,7 +15,9 @@ def parse_args():
 Copy n seconds from webcam to destination.""",
                            )
     parser.add_argument('-s', '--seconds', dest='seconds', type=float, default=5)
-    parser.add_argument('-c', '--camera_id', dest='camera_id', type=int, default=-1)
+    parser.add_argument('-i', '--camera_id', dest='camera_id', type=int, default=-1)
+    parser.add_argument('-c', '--codec_fourcc', dest='fourcc', type=str, default='XVID')
+    parser.add_argument('-f', '--fps', dest='fps', type=float, default=25)
     parser.add_argument(nargs=1, dest='out_file', type=str)
     args = parser.parse_args()
     
@@ -29,9 +31,9 @@ if __name__ == '__main__':
 
     cam_cap = CameraCapture()
     info = cam_cap.get_framerate_info()
-    target_fps = min(24., int(0.95 * info.mean_framerate))
+    target_fps = min(args.fps, int(0.95 * info.mean_framerate))
 
-    r = Recorder(args.out_file, cam_cap, fps=target_fps, auto_init=True)
+    r = Recorder(args.out_file, cam_cap, fps=target_fps, codec=args.fourcc, auto_init=True)
     r.record()
     sleep(args.seconds)
     log = r.stop()

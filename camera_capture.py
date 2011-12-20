@@ -152,10 +152,15 @@ class CAMVideoCapture(CameraCaptureBase):
         for i in range(100):
             self.device.getImage()
 
+    def _release_capture(self):
+        if self.device:
+            del self.device
+
     def get_frame(self):
         pi = self.device.getImage()
         frame = cv.CreateImageHeader(pi.size, cv.IPL_DEPTH_8U, 3)
         cv.SetData(frame, pi.tostring())
+        cv.CvtColor(frame, frame, cv.CV_RGB2BGR)
         return frame
 
     @property

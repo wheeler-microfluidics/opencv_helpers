@@ -85,10 +85,14 @@ class RecorderLog(object):
 class RecorderChild(object):
     STATES = dict(RECORDING=10, STOPPED=20)
 
-    def __init__(self, conn, output_path, cam_cap, fps=24):
+    def __init__(self, conn, output_path, cam_cap, fps=24, codec=None):
         self.conn = conn
         self.output_path = path(output_path)
         self.fps = fps
+        if codec is None and not os.name == 'nt':
+            codec = 'XVID'
+        self.codec = codec
+        print '[RecorderChild] Using codec: ', self.codec
         self.cam_cap = cam_cap
         self.cam_cap.init_capture()
         self.writer = self._get_writer()
@@ -96,24 +100,12 @@ class RecorderChild(object):
         self.frame_period = 1.0 / self.fps
         
     def _get_writer(self):
-        if os.name == 'nt':
-            codec = 'I420'
-            #codec = 'FFV1'
-            #codec = 'XVID'
-            #codec = 'MJPG'
-            #codec = 'PIM1'
-            #codec = 'DIVX'
-            writer = cv.CreateVideoWriter(self.output_path, cv.CV_FOURCC(*codec),
-                self.fps, self.cam_cap.dimensions, True)
+        if self.codec is None:
+            fourcc = -1
         else:
-            codec = 'XVID'
-
-            import numpy as np
-
-            #dimensions = np.array(np.array(self.cam_cap.dimensions) * 0.25, dtype=int)
-            dimensions = np.array(np.array(self.cam_cap.dimensions), dtype=int)
-            writer = cv.CreateVideoWriter(self.output_path, cv.CV_FOURCC(*codec),
-                                            self.fps, tuple(dimensions), True)
+            fourcc = cv.CV_FOURCC(*self.codec)
+        writer = cv.CreateVideoWriter(self.output_path, fourcc, self.fps,
+                                            self.cam_cap.dimensions, True)
         return writer
 
     def main(self):
@@ -197,10 +189,11 @@ class RecorderChild(object):
 
 
 class Recorder(object):
-    def __init__(self, output_path, cam_cap, fps=24, auto_init=False):
+    def __init__(self, output_path, cam_cap, fps=24, codec=None, auto_init=False):
         self.output_path = path(output_path)
         self.fps = fps
         self.cam_cap = cam_cap
+        self.codec = codec
         self.conn, self.child_conn = multiprocessing.Pipe()
         if auto_init:
             self.child = self._launch_child()
@@ -226,7 +219,7 @@ class Recorder(object):
         return p
 
     def _start_child(self):
-        child = RecorderChild(self.child_conn, self.output_path, self.cam_cap, self.fps)
+        child = RecorderChild(self.child_conn, self.output_path, self.cam_cap, self.fps, self.codec)
         child.main()
 
     def record(self):
