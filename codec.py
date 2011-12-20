@@ -3,7 +3,6 @@ import os
 from urllib import urlopen
 from collections import namedtuple
 
-from BeautifulSoup import BeautifulSoup
 from path import path
 
 from silence import Silence
@@ -378,6 +377,8 @@ def get_supported_codecs():
 
 
 def get_codec_list(url='http://www.fourcc.org/codecs.php'):
+    from BeautifulSoup import BeautifulSoup
+
     data = urlopen(url).read()
     soup = BeautifulSoup(data)
 

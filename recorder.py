@@ -204,6 +204,7 @@ class RecordFrameRateInfo(FrameRateInfo):
                 fourcc = cv.CV_FOURCC(*self.codec)
             f_handle, output_path = tempfile.mkstemp(suffix='.avi') 
             output_path = path(output_path)
+            os.close(f_handle)
             times = []
             writer = None
             try:
@@ -224,6 +225,8 @@ class RecordFrameRateInfo(FrameRateInfo):
 
                 frame_lengths = np.array([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
             finally:
+                if writer:
+                    del writer
                 output_path.remove()
 
         return np.array(times), frame_lengths
