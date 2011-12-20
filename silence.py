@@ -102,6 +102,7 @@ class Silence:
         for s in self.saved_streams: s.flush()
         # restore original streams and file descriptors
         map(os.dup2, self.saved_fds, self.fds)
+        map(os.close, self.saved_fds)
         sys.stdout, sys.stderr = self.saved_streams
         # clean up
         for s in self.null_streams: s.close()
