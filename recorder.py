@@ -11,7 +11,7 @@ from path import path, pickle
 import numpy as np
 
 from video import cv, CVCaptureProperties
-from camera_capture import FrameRateInfo
+from frame_rate import FrameRateInfo
 from silence import Silence
 
 

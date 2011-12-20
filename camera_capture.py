@@ -5,13 +5,10 @@ import numpy as np
 
 from video import CVCaptureProperties
 from recorder import CVCaptureConfig, cv
+from frame_rate import FrameRateInfo
 
 
-class FrameRateInfo(object):
-    def __init__(self, cam_cap):
-        self.cam_cap = cam_cap
-        self.times, self.frame_lengths = self.test_framerate()
-
+class CaptureFrameRateInfo(FrameRateInfo):
     def test_framerate(self, frame_count=50):
         times = [datetime.now()]
         for i in range(frame_count):
@@ -22,29 +19,6 @@ class FrameRateInfo(object):
         frame_lengths = np.array([(times[i + 1] - times[i]).total_seconds()  for i in range(len(times) - 1)])
 
         return np.array(times), frame_lengths
-
-    def get_summary(self):
-        print 'captured %d frames' % len(self.times)
-        print '  first frame: %s' % self.times[0]
-        print '  last frame:  %s' % self.times[-1]
-        print '  recording length: %s' % (self.times[-1] - self.times[0]).total_seconds()
-
-        print '  Frame rate info:'
-        print '    mean: %s' % self.mean_framerate
-        print '    max:  %s' % self.max_framerate
-        print '    min:  %s' % self.min_framerate
-
-    @property
-    def mean_framerate(self):
-        return 1. / self.frame_lengths.mean()
-
-    @property
-    def min_framerate(self):
-        return 1. / self.frame_lengths.max()
-
-    @property
-    def max_framerate(self):
-        return 1. / self.frame_lengths.min()
 
 
 class CameraCaptureBase(object):
@@ -86,7 +60,7 @@ class CameraCaptureBase(object):
         else:
             cleanup_required = False
 
-        info = FrameRateInfo(self)
+        info = CaptureFrameRateInfo(self)
 
         if cleanup_required:
             self.release_capture()
