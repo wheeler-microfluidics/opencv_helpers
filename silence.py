@@ -1,5 +1,10 @@
 ## {{{ http://code.activestate.com/recipes/577564/ (r2)
 import os
+import sys
+from StringIO import StringIO
+from tempfile import NamedTemporaryFile, mkstemp
+
+from path import path
 
 class Silence:
     """Context manager which uses low-level file descriptors to suppress
@@ -72,10 +77,12 @@ class Silence:
         self.outfiles = stdout, stderr
         self.combine = (stdout == stderr)
         self.mode = mode
+        self.files = self.outfiles
+        self.temp_files = [None, None]
+        self.string_io = [isinstance(f, StringIO) for f in self.outfiles]
         
     def __enter__(self):
-        import sys
-        self.sys = sys
+        #self.sys = sys
         # save previous stdout/stderr
         self.saved_streams = saved_streams = sys.__stdout__, sys.__stderr__
         self.fds = fds = [s.fileno() for s in saved_streams]
@@ -83,13 +90,29 @@ class Silence:
         # flush any pending output
         for s in saved_streams: s.flush()
 
+        files = list(self.files)
+        for i, s in enumerate(self.string_io):
+            if s:
+                # This file is actually a StringIO.  We need to create a temp
+                # file to write output to, which we can later copy back to
+                # the StringIO object.
+                fd, file_path = mkstemp()
+                os.close(fd)
+                self.temp_files[i] = path(file_path)
+                files[i] = self.temp_files[i]
+        self.files = tuple(files)
+
         # open surrogate files
         if self.combine: 
-            null_streams = [open(self.outfiles[0], self.mode, 0)] * 2
-            if self.outfiles[0] != os.devnull:
-                # disable buffering so output is merged immediately
-                sys.stdout, sys.stderr = map(os.fdopen, fds, ['w']*2, [0]*2)
-        else: null_streams = [open(f, self.mode, 0) for f in self.outfiles]
+            null_streams = [open(self.files[0], self.mode, 0)] * 2
+            if self.files[0] != os.devnull:
+                #sys.stdout, sys.stderr = map(os.fdopen, fds, ['w']*2, [0]*2)
+                # Christian Fobel: leave sys.stdout/err alone, since it
+                # causes the interpreter to exit immediately following
+                # __exit__().
+                pass
+        else:
+            null_streams = [open(f, self.mode, 0) for f in self.files]
         self.null_fds = null_fds = [s.fileno() for s in null_streams]
         self.null_streams = null_streams
         
@@ -97,7 +120,7 @@ class Silence:
         map(os.dup2, null_fds, fds)
 
     def __exit__(self, *args):
-        sys = self.sys
+        #sys = self.sys
         # flush any pending output
         for s in self.saved_streams: s.flush()
         # restore original streams and file descriptors
@@ -106,6 +129,14 @@ class Silence:
         sys.stdout, sys.stderr = self.saved_streams
         # clean up
         for s in self.null_streams: s.close()
+        for i, f in enumerate(self.temp_files):
+            # Write contents from temp files into respective StringIO objects.
+            if f:
+                if self.string_io[i]:
+                    # Note that this should always be True, but we'll check to
+                    # make sure.
+                    self.outfiles[i].write(f.bytes())
+                # Delete temp file.
+                f.remove()
         return False
 ## end of http://code.activestate.com/recipes/577564/ }}}
-
