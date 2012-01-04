@@ -8,6 +8,10 @@ from recorder import CVCaptureConfig, cv, RecordFrameRateInfo
 from frame_rate import FrameRateInfo
 
 
+class CaptureError(Exception):
+    pass
+
+
 class CaptureFrameRateInfo(FrameRateInfo):
     def test_framerate(self, frame_count=50):
         times = [datetime.now()]
@@ -40,6 +44,8 @@ class CameraCaptureBase(object):
 
     def init_capture(self):
         result = self._init_capture()
+        if self.get_frame() is None:
+            raise CaptureError, 'could not initialize capture device.'
         self.initialized = True
         return result
 
@@ -102,7 +108,6 @@ class CVCameraCapture(CameraCaptureBase):
 
     def _init_capture(self):
         self.cap = self.cap_config.create_capture()
-        #self._set_dimensions([640, 480])
 
     def get_frame(self):
         cv.GrabFrame(self.cap)
