@@ -1,2 +1,4 @@
 *.pyc
 .sconsign.dblite
+*.avi
+*.jpg
