@@ -47,11 +47,10 @@ class Device:
 
         """
         self.dev = vidcap.new_Dev(devnum, showVideoWindow)
-	from path import path
-	import os
-	
-	here = path(__file__).parent.abspath()
-	print here
+        from path import path
+        import os
+
+        here = path(__file__).parent.abspath()
 
         self.normalfont = ImageFont.load_path(here.joinpath('helvetica-10.pil'))
         self.boldfont = ImageFont.load_path(here.joinpath('helvB08.pil'))

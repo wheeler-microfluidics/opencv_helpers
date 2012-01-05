@@ -1,8 +1,11 @@
 #!/usr/bin/env python
 from time import sleep
+from contextlib import closing
+from StringIO import StringIO
 
 from path import path
 
+from silence import Silence
 from recorder import Recorder, CVCaptureConfig, RecordFrameRateInfo
 from camera_capture import CameraCapture
 from codec import CodecTest, get_supported_codecs
@@ -67,6 +70,7 @@ if __name__ == '__main__':
     r = Recorder(args.out_file, cam_cap, fps=target_fps, codec=args.fourcc, auto_init=True)
     r.record()
     sleep(args.seconds)
+
     log = r.stop()
 
     log.print_summary()

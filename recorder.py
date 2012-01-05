@@ -3,9 +3,12 @@ from time import sleep
 import Queue
 import multiprocessing
 from collections import namedtuple
+from contextlib import closing
+from StringIO import StringIO
 from datetime import datetime, timedelta
 import os
 import tempfile
+import logging
 
 from path import path, pickle
 import numpy as np
@@ -95,7 +98,7 @@ class RecorderChild(object):
         if codec is None and not os.name == 'nt':
             codec = 'XVID'
         self.codec = codec
-        print '[RecorderChild] Using codec: ', self.codec
+        logging.getLogger('opencv.recorder').info('[RecorderChild] Using codec: %s' % self.codec)
         self.cam_cap = cam_cap
         self.cam_cap.init_capture()
         self.writer = self._get_writer()
@@ -114,7 +117,6 @@ class RecorderChild(object):
     def main(self):
         import numpy as np
 
-        #with Silence():
         prev_frame = None
 
         self.cam_cap.get_framerate_info()
@@ -123,7 +125,7 @@ class RecorderChild(object):
         avg_count = 1
         record_times_smooth = np.array(avg_count * [0.1 * self.frame_period])
         frame_periods = np.array(avg_count * [0.95 * self.frame_period])
-        print 'Target FPS: %.4f' % (self.fps)
+        logging.getLogger('opencv.recorder').info('Target FPS: %.4f' % (self.fps))
 
         log = RecorderLog(self.fps)
 
@@ -148,11 +150,11 @@ class RecorderChild(object):
             if self.conn.poll():
                 command = self.conn.recv()
                 if command == 'stop':
-                    print 'stop recording'
+                    logging.getLogger('opencv.recorder').info('stop recording')
                     self.state = self.STATES['STOPPED']
                     break
                 elif command == 'record':
-                    print 'recording'
+                    logging.getLogger('opencv.recorder').info('recording')
                     self.state = self.STATES['RECORDING']
             if self.state == self.STATES['RECORDING']:
                 log.times.append(datetime.now())
@@ -179,7 +181,7 @@ class RecorderChild(object):
                 if sleep_time > 0:
                     sleep(sleep_time)
                 else:
-                    print 'warning: recording is lagging'
+                    logging.getLogger('opencv.recorder').info('warning: recording is lagging')
                 frame_count += 1
 
 
@@ -187,7 +189,7 @@ class RecorderChild(object):
 
         # Report log back to parent process
         self.conn.send(log)
-        
+
         return
 
 
@@ -196,7 +198,7 @@ class RecordFrameRateInfo(FrameRateInfo):
         self.codec = codec
         super(RecordFrameRateInfo, self).__init__(cam_cap)
 
-    def test_framerate(self, frame_count=50):
+    def test_framerate(self, frame_count=100):
         with Silence():
             if self.codec is None:
                 fourcc = -1
@@ -259,7 +261,7 @@ class Recorder(object):
                 break
             else:
                 raise Exception('Invalid response from RecorderChild')
-        print 'RecorderChild is ready'
+        logging.getLogger('opencv.recorder').info('RecorderChild is ready')
         return p
 
     def _start_child(self):
@@ -269,11 +271,11 @@ class Recorder(object):
     def record(self):
         if self.child is None:
             self.child = self._launch_child()
-        print 'request recording: %s' % datetime.now()
+        logging.getLogger('opencv.recorder').info('request recording: %s' % datetime.now())
         self.conn.send('record')
 
     def stop(self):
-        print 'request stop: %s' % datetime.now()
+        logging.getLogger('opencv.recorder').info('request stop: %s' % datetime.now())
         self.conn.send('stop')
         if self.child:
             log = self._pipe_pull()
