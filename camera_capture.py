@@ -142,7 +142,10 @@ class CAMVideoCapture(CameraCaptureBase):
     def _init_capture(self):
         from videocapture.VideoCapture import Device
 
-        self.device = Device()
+        try:
+            self.device = Device()
+        except Exception, why:
+            raise CaptureError, 'could not initialize capture device'
         for i in range(100):
             self.device.getImage()
 
