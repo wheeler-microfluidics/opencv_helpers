@@ -106,8 +106,9 @@ class FrameGrabberChild(object):
                 if frame:
                     # Convert frame to NumPy array so it can be pickled/sent
                     # to parent process.
-                    np_frame = np.asarray(cv.GetMat(frame))
-                    self.conn.send(('frame', np_frame))
+                    mat = cv.GetMat(frame)
+                    np_frame = np.asarray(mat)
+                    self.conn.send(['frame', np_frame])
                     frames_captured += 1
                 sleep(0.001)
         self.conn.send(('results', dict(frames_captured=frames_captured,
@@ -152,12 +153,14 @@ class FrameGrabber(object):
         child.main()
 
     def _grab_frame(self):
-        if self.enabled and self.conn.poll():
+        frame = None
+        while self.enabled and self.conn.poll():
             frame = self.conn.recv()
-            if len(frame) > 0:
+            if len(frame) > 0 and frame:
                 self.current_frame = frame[1]
-                if self.frame_callback:
-                    self.frame_callback(self.current_frame)
+        if frame is not None:
+            if self.frame_callback:
+                self.frame_callback(self.current_frame)
         return self.enabled
 
     def start(self):

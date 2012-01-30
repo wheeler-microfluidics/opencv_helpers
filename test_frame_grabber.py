@@ -1,4 +1,22 @@
 #!/usr/bin/env python
+"""
+Copyright 2012 Ryan Fobel and Christian Fobel
+
+This file is part of Microdrop.
+
+Microdrop is free software: you can redistribute it and/or modify
+it under the terms of the GNU General Public License as published by
+Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+Microdrop is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU General Public License for more details.
+
+You should have received a copy of the GNU General Public License
+along with Microdrop.  If not, see <http://www.gnu.org/licenses/>.
+"""
 from time import sleep
 from contextlib import closing
 from StringIO import StringIO
@@ -27,6 +45,24 @@ Grab frames from webcam and asynchronously display to Gtk DrawingArea.""",
 
     return args
 
+def array2cv(a):
+    dtype2depth = {
+            'uint8':   cv.IPL_DEPTH_8U,
+            'int8':    cv.IPL_DEPTH_8S,
+            'uint16':  cv.IPL_DEPTH_16U,
+            'int16':   cv.IPL_DEPTH_16S,
+            'int32':   cv.IPL_DEPTH_32S,
+            'float32': cv.IPL_DEPTH_32F,
+            'float64': cv.IPL_DEPTH_64F,
+        }
+    try:
+        nChannels = a.shape[2]
+    except:
+        nChannels = 1
+    cv_im = cv.CreateMat(a.shape[0], a.shape[1], cv.CV_8UC3)
+    cv.SetData(cv_im, a.tostring(), a.shape[1] * nChannels)
+    return cv_im
+
 
 class FrameGrabberGUI:
     def __init__(self):
@@ -44,7 +80,6 @@ class FrameGrabberGUI:
         self.pixbuf = None
         self.pixmap = None
         self.grabber.start()
-        self.last_frame = None
 
     def on_drawing_area_expose_event(self, widget, event):
         if self.pixmap:
@@ -55,21 +90,29 @@ class FrameGrabberGUI:
 
     def draw_state(self):
         pixmap, mask = self.pixbuf.render_pixmap_and_mask()
-        pixmap.draw_rectangle(gui.area.get_style().white_gc,
-                    True, 100, 100, 100, 100)
-        pixmap.draw_rectangle(gui.area.get_style().white_gc,
-                    True, 300, 300, 100, 100)
+        cairo = pixmap.cairo_create()
+        # Draw two red boxes
+        cairo.set_source_rgba(1, 0, 0, 0.5)
+        cairo.rectangle(200, 100, 100, 100)
+        cairo.fill()
+        cairo.rectangle(200, 300, 100, 100)
+        cairo.fill()
+        # Draw two white boxes
+        cairo.set_source_rgba(1, 1, 1, 0.5)
+        cairo.rectangle(300, 100, 100, 100)
+        cairo.fill()
+        cairo.rectangle(300, 300, 100, 100)
+        cairo.fill()
         return pixmap
 
     def update_frame_data(self, frame):
         # Process NumPy array frame data
         height, width, channels = frame.shape
-        self.last_frame = frame
         depth = {np.dtype('uint8'): 8}[frame.dtype]
         logging.debug('[update_frame_data] type(frame)=%s '\
             'height, width, channels, depth=(%s)'\
             % (type(frame), (height, width, channels, depth)))
-        gtk_frame = cv.fromarray(frame)
+        gtk_frame = array2cv(frame)
         cv.CvtColor(gtk_frame, gtk_frame, cv.CV_BGR2RGB)
         self.pixbuf = gtk.gdk.pixbuf_new_from_data(
             gtk_frame.tostring(), gtk.gdk.COLORSPACE_RGB, False,
