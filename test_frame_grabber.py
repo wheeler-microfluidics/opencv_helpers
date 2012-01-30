@@ -80,6 +80,13 @@ class FrameGrabberGUI:
         self.pixbuf = None
         self.pixmap = None
         self.grabber.start()
+        self.video_enabled = False
+
+    def on_button_start_clicked(self, *args, **kwargs):
+        self.video_enabled = True
+
+    def on_button_stop_clicked(self, *args, **kwargs):
+        self.video_enabled = False
 
     def on_drawing_area_expose_event(self, widget, event):
         if self.pixmap:
@@ -88,9 +95,7 @@ class FrameGrabberGUI:
                         self.pixmap, x, y, x, y, width, height)
         return False
 
-    def draw_state(self):
-        pixmap, mask = self.pixbuf.render_pixmap_and_mask()
-        cairo = pixmap.cairo_create()
+    def draw_state(self, cairo):
         # Draw two red boxes
         cairo.set_source_rgba(1, 0, 0, 0.5)
         cairo.rectangle(200, 100, 100, 100)
@@ -103,21 +108,31 @@ class FrameGrabberGUI:
         cairo.fill()
         cairo.rectangle(300, 300, 100, 100)
         cairo.fill()
-        return pixmap
 
     def update_frame_data(self, frame):
-        # Process NumPy array frame data
-        height, width, channels = frame.shape
-        depth = {np.dtype('uint8'): 8}[frame.dtype]
-        logging.debug('[update_frame_data] type(frame)=%s '\
-            'height, width, channels, depth=(%s)'\
-            % (type(frame), (height, width, channels, depth)))
-        gtk_frame = array2cv(frame)
-        cv.CvtColor(gtk_frame, gtk_frame, cv.CV_BGR2RGB)
-        self.pixbuf = gtk.gdk.pixbuf_new_from_data(
-            gtk_frame.tostring(), gtk.gdk.COLORSPACE_RGB, False,
-            depth, width, height, gtk_frame.step)
-        self.pixmap = self.draw_state()
+        cairo = None
+        if self.video_enabled:
+            # Process NumPy array frame data
+            height, width, channels = frame.shape
+            depth = {np.dtype('uint8'): 8}[frame.dtype]
+            logging.debug('[update_frame_data] type(frame)=%s '\
+                'height, width, channels, depth=(%s)'\
+                % (type(frame), (height, width, channels, depth)))
+            gtk_frame = array2cv(frame)
+            cv.CvtColor(gtk_frame, gtk_frame, cv.CV_BGR2RGB)
+            self.pixbuf = gtk.gdk.pixbuf_new_from_data(
+                gtk_frame.tostring(), gtk.gdk.COLORSPACE_RGB, False,
+                depth, width, height, gtk_frame.step)
+            self.pixmap, mask = self.pixbuf.render_pixmap_and_mask()
+            cairo = self.pixmap.cairo_create()
+        elif self.pixmap is not None:
+            x, y, width, height = self.area.get_allocation()
+            cairo = self.pixmap.cairo_create()
+            cairo.set_source_rgb(1, 1, 1)
+            cairo.rectangle(0, 0, width, height)
+            cairo.fill()
+        if cairo:
+            self.draw_state(cairo)
         self.area.queue_draw()
         return True
 
