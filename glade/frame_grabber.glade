@@ -23,6 +23,7 @@
                 <property name="height_request">480</property>
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
+                <signal name="expose-event" handler="on_drawing_area_expose_event" swapped="no"/>
               </object>
             </child>
           </object>

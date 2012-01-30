@@ -42,8 +42,24 @@ class FrameGrabberGUI:
         self.grabber = FrameGrabber(self.cam_cap, auto_init=True)
         self.grabber.frame_callback = self.update_frame_data
         self.pixbuf = None
+        self.pixmap = None
         self.grabber.start()
         self.last_frame = None
+
+    def on_drawing_area_expose_event(self, widget, event):
+        if self.pixmap:
+            x , y, width, height = event.area
+            self.area.window.draw_drawable(gui.area.get_style().white_gc,
+                        self.pixmap, x, y, x, y, width, height)
+        return False
+
+    def draw_state(self):
+        pixmap, mask = self.pixbuf.render_pixmap_and_mask()
+        pixmap.draw_rectangle(gui.area.get_style().white_gc,
+                    True, 100, 100, 100, 100)
+        pixmap.draw_rectangle(gui.area.get_style().white_gc,
+                    True, 300, 300, 100, 100)
+        return pixmap
 
     def update_frame_data(self, frame):
         # Process NumPy array frame data
@@ -58,9 +74,8 @@ class FrameGrabberGUI:
         self.pixbuf = gtk.gdk.pixbuf_new_from_data(
             gtk_frame.tostring(), gtk.gdk.COLORSPACE_RGB, False,
             depth, width, height, gtk_frame.step)
-        if self.pixbuf:
-            self.area.window.draw_pixbuf(gui.window.get_style().white_gc,
-                                        self.pixbuf, 0, 0, 0, 0)
+        self.pixmap = self.draw_state()
+        self.area.queue_draw()
         return True
 
     def on_window_destroy(self, widget):
@@ -82,3 +97,4 @@ if __name__ == '__main__':
     gui = FrameGrabberGUI()
 
     gtk.main()
+
