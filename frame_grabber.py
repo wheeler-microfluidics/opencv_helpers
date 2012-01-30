@@ -76,7 +76,10 @@ class FrameGrabberChild(object):
     def __init__(self, conn, cam_cap):
         self.conn = conn
         self.cam_cap = cam_cap
-        self.cam_cap.init_capture()
+        try:
+            self.cam_cap.init_capture()
+        except:
+            self.cam_cap = None
         self.state = self.STATES['STOPPED']
         
     def main(self):
@@ -101,7 +104,8 @@ class FrameGrabberChild(object):
                     logging.getLogger('opencv.frame_grabber').info('recording')
                     self.state = self.STATES['RECORDING']
                     start_time = datetime.now()
-            if self.state == self.STATES['RECORDING']:
+            if self.cam_cap is not None\
+            and self.state == self.STATES['RECORDING']:
                 frame = self.cam_cap.get_frame()
                 if frame:
                     # Convert frame to NumPy array so it can be pickled/sent
@@ -110,7 +114,7 @@ class FrameGrabberChild(object):
                     np_frame = np.asarray(mat)
                     self.conn.send(['frame', np_frame])
                     frames_captured += 1
-                sleep(0.001)
+            sleep(0.001)
         self.conn.send(('results', dict(frames_captured=frames_captured,
                                 start_time=start_time,
                                 stop_time=stop_time)))
