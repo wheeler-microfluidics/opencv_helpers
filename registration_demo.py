@@ -6,78 +6,8 @@ import numpy as np
 from path import path
 
 from safe_cv import cv
-
-
-class TransformTest(object):
-    def __init__(self, in_file):
-        self.in_file = path(in_file)
-
-    def get_rotated_image(self, in_image, rotate_degrees):
-        rotated = cv.CreateImage((in_image.width, in_image.height), 8, in_image.channels)
-        map_mat = cv.CreateMat(2, 3, cv.CV_32FC1)
-        cv.GetRotationMatrix2D((rotated.width * 0.5, rotated.height * 0.5),
-                                rotate_degrees, 1., map_mat)
-        cv.WarpAffine(in_image, rotated, map_mat)
-        return rotated, map_mat
-
-    def get_affine_image(self, in_image, map_mat):
-        warped = cv.CreateImage((in_image.width, in_image.height), 8,
-                                in_image.channels)
-        a = [(0, 0), (in_image.width, in_image.height), (in_image.width, 0)]
-        b = self.transform(a, map_mat)
-        warped_mat = cv.CreateMat(2, 3, cv.CV_32FC1)
-        cv.GetAffineTransform(a, b, warped_mat)
-        cv.WarpAffine(in_image, warped, warped_mat, flags=cv.CV_WARP_INVERSE_MAP)
-        return warped, warped_mat
-
-    def transform(self, points, map_mat):
-        np_map = np.asarray(map_mat)
-        get_transform_point = lambda x:\
-            tuple(np_map.dot(np.array((points[x][0], points[x][1], 1))\
-            .transpose()))
-        return map(get_transform_point, range(len(points)))
-
-    def get_perspective_image(self, in_image, map_mat):
-        warped = cv.CreateImage((in_image.width, in_image.height), 8,
-                                in_image.channels)
-        a = [(0,0), (in_image.width, in_image.height), (in_image.width, 0),
-                (0, in_image.height)]
-        b = self.transform(a, map_mat)
-        warped_mat = cv.CreateMat(3, 3, cv.CV_32FC1)
-        cv.GetPerspectiveTransform(a, b, warped_mat)
-        cv.WarpPerspective(in_image, warped, warped_mat, flags=cv.CV_WARP_INVERSE_MAP)
-        return warped, warped_mat
-
-    def test_affine_transform(self, rotate_degrees, out_file_prefix=None):
-        if out_file_prefix is None:
-            out_file_prefix = self.in_file.parent.joinpath(self.in_file.namebase)
-        original = cv.LoadImageM(self.in_file)
-        rotated, map_mat = self.get_rotated_image(original, rotate_degrees)
-        cv.SaveImage('%s-affine_rotated%s' % (out_file_prefix, self.in_file.ext),
-                        rotated)
-
-        warped, warped_mat = self.get_affine_image(rotated, map_mat)
-        cv.SaveImage('%s-affine_warped%s' % (out_file_prefix, self.in_file.ext),
-                        warped)
-
-    def test_perspective_transform(self, rotate_degrees, out_file_prefix=None):
-        if out_file_prefix is None:
-            out_file_prefix = self.in_file.parent.joinpath(self.in_file.namebase)
-        original = cv.LoadImageM(self.in_file)
-        rotated, map_mat = self.get_rotated_image(original, rotate_degrees)
-        cv.SaveImage('%s-perspective_rotated%s' % (out_file_prefix, self.in_file.ext),
-                        rotated)
-
-        warped = cv.CreateImage((original.width, original.height), 8, original.channels)
-        warped, warped_mat = self.get_perspective_image(rotated, map_mat)
-        cv.SaveImage('%s-perspective_warped%s' % (out_file_prefix, self.in_file.ext),
-                        warped)
-
-
-class States(object):
-    OFF=object()
-    LEARN_ORIGINAL_POINTS=object()
-    LEARN_ROTATED_POINTS=object()
+from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\
+                                IMAGE_CLICK, CANCEL, AskToKeep
 
 
 class RegistrationDemoGUI:
@@ -89,7 +19,7 @@ class RegistrationDemoGUI:
             self.in_file2 = None
         self.builder = gtk.Builder()
         self.builder.add_from_file(os.path.join('glade', 'registration_demo.glade'))
-        self.window = self.builder.get_object('window')
+        self.window = self.builder.get_object('dialog')
         self.label_info = self.builder.get_object('label_info')
         self.areas = dict(
             original=self.builder.get_object('original'),
@@ -97,12 +27,17 @@ class RegistrationDemoGUI:
             result=self.builder.get_object('result'))
         # connect signals from glade to python
         self.builder.connect_signals(self)
-        self.window.show_all()
         # show window and contents
         self.images = {}
         self.pixmaps = {}
         self.pixbufs = {}
+        self.window.show_all()
+
+    def run(self):
         self.reset()
+        response = self.window.run()
+        self.window.hide()
+        return response
 
     def _get_warped_image(self, width=None, height=None):
         if self.in_file2 is None:
@@ -131,7 +66,40 @@ class RegistrationDemoGUI:
         self.areas['original'].queue_draw()
         self.areas['rotated'].queue_draw()
         self.points = dict(original=[], rotated=[])
-        self.state = States.OFF
+        self.registration = ImageRegistrationTask(
+                    on_overlay_point=lambda x: self.label_info.set_text(x),
+                    on_image_point=lambda x: self.label_info.set_text(x),
+                    on_registered=self.on_image_registered,
+                    on_accepted=self.on_image_accepted,
+                    on_canceled=self.on_canceled)
+        self.registration.start()
+
+    def on_canceled(self, *args):
+        for i in ['original', 'rotated']:
+            self.areas[i].queue_draw()
+
+    def on_image_registered(self, *args):
+        # Image has been registered, prompt to see if we should apply.
+        response = self.question("Four points have been registered.  Would you like to apply?")
+        if response == gtk.RESPONSE_YES:
+            self.registration.trigger_event(AskToKeep.REGISTER_OK)
+        else:
+            self.registration.trigger_event(CANCEL)
+
+    def on_image_accepted(self, *args):
+        # Image has been accepted, apply transformation.
+        self.images['result'] = self.registration.get_corrected_image(self.images['rotated'])
+        self.draw_cv_to_pixmap('result')
+        #for i in ['original', 'rotated', 'result']:
+        for i in ['result']:
+            self.areas[i].queue_draw()
+        self.registration.start()
+
+    def make_event(self, etype, **kwargs):
+        event = state.Event(etype)
+        for key, value in kwargs.iteritems():
+            setattr(event, key, value)
+        return event
 
     def get_rotated(self, in_image, rotate_degrees):
         rotated = cv.CreateImage((in_image.width, in_image.height), 8, in_image.channels)
@@ -187,51 +155,30 @@ class RegistrationDemoGUI:
     def on_button_reset_clicked(self, *args, **kwargs):
         self.reset()
 
-    def get_perspective_image(self, in_image, map_mat):
-        warped = cv.CreateImage((in_image.width, in_image.height), 8,
-                                in_image.channels)
-        cv.WarpPerspective(in_image, warped, map_mat, flags=cv.CV_WARP_INVERSE_MAP)
-        return warped
-
     def on_rotated_button_press_event(self, widget, event):
-        if not self.state == States.LEARN_ROTATED_POINTS:
-            return False
-        point_count = len(self.points['rotated']) 
-        self.points['rotated'].append(event.get_coords())
-        point_count += 1
-        self.label_info.set_text('Click on point %d in rotated image' % (point_count))
-        if point_count >= 4:
-            self.state = States.OFF
-            self.label_info.set_text('original: %s\nrotated: %s'\
-                % (self.points['original'], self.points['rotated']))
-            #import pudb; pudb.set_trace()
-            map_mat = cv.CreateMat(3, 3, cv.CV_32FC1)
-            cv.GetPerspectiveTransform(self.points['original'], self.points['rotated'], map_mat)
-            self.images['result'] = self.get_perspective_image(self.images['rotated'], map_mat)
-            self.draw_cv_to_pixmap('result')
-            self.areas['result'].queue_draw()
-            self.points = dict(original=[], rotated=[])
+        self.registration.trigger_event(IMAGE_CLICK,
+            cairo_context=widget.window.cairo_create(),
+            point=Point(*event.get_coords()))
         return False
 
     def on_original_button_press_event(self, widget, event):
-        if not self.state == States.LEARN_ORIGINAL_POINTS:
-            return False
-        point_count = len(self.points['original']) 
-        self.points['original'].append(event.get_coords())
-        point_count += 1
-        self.label_info.set_text('Click on point %d in original image' % (point_count))
-        if point_count >= 4:
-            self.state = States.LEARN_ROTATED_POINTS
-            self.label_info.set_text('Click on point 0 in rotated image')
+        self.registration.trigger_event(OVERLAY_CLICK,
+            cairo_context=widget.window.cairo_create(),
+            point=Point(*event.get_coords()))
         return False
-
-    def on_button_perspective_clicked(self, *args, **kwargs):
-        if self.state == States.OFF:
-            self.label_info.set_text('Click on point 0 in original image')
-            self.state = States.LEARN_ORIGINAL_POINTS
 
     def on_window_destroy(self, *args, **kwargs):
         gtk.main_quit()
+
+    def question(self, message, title=""):
+        dialog = gtk.MessageDialog(self.window, 
+                                   gtk.DIALOG_DESTROY_WITH_PARENT,
+                                   gtk.MESSAGE_QUESTION,
+                                   gtk.BUTTONS_YES_NO, message)
+        dialog.set_title(title)
+        result = dialog.run()
+        dialog.destroy()
+        return result
 
     def info(self, message, title=""):
         dialog = gtk.MessageDialog(self.window, 
@@ -242,6 +189,7 @@ class RegistrationDemoGUI:
         result = dialog.run()
         dialog.destroy()
         return result
+
 
 def parse_args():
     """Parses arguments, returns ``(options, args)``."""
@@ -276,5 +224,6 @@ if __name__ == '__main__':
         level=logging.INFO)
 
     gui = RegistrationDemoGUI(args.input_image, args.warped_image)
+    gui.run()
 
-    gtk.main()
+    #gtk.main()
