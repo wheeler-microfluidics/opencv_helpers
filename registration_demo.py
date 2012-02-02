@@ -98,7 +98,7 @@ class RegistrationDemoGUI:
         #for i in ['original', 'rotated', 'result']:
         for i in ['result']:
             self.areas[i].queue_draw()
-        self.registration.start()
+        self.label_info.set_text('')
 
     def make_event(self, etype, **kwargs):
         event = state.Event(etype)
