@@ -183,8 +183,11 @@ class ImageRegistrationTask(object):
             on_accepted=None, on_canceled=None):
         # Need to use an array for current_point or changes from a State
         # would not persist.
+        self.map_mat = cv.CreateMat(3, 3, cv.CV_32FC1)
+        # Initialize map_mat with identity transformation matrix.
+        cv.GetPerspectiveTransform(4 * [Point(0,0)], 4 * [Point(0,0)], self.map_mat)
         self.state = dict(overlay_points=[], image_points=[],
-            map_mat=cv.CreateMat(3, 3, cv.CV_32FC1),
+            map_mat=self.map_mat,
             on_overlay_point=on_overlay_point,
             on_image_point=on_image_point,
             on_registered=on_registered,

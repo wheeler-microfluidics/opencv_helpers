@@ -17,10 +17,34 @@
             <property name="can_focus">False</property>
             <property name="layout_style">end</property>
             <child>
-              <placeholder/>
+              <object class="GtkButton" id="button_ok">
+                <property name="label">gtk-ok</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">0</property>
+              </packing>
             </child>
             <child>
-              <placeholder/>
+              <object class="GtkButton" id="button_cancel">
+                <property name="label">gtk-cancel</property>
+                <property name="visible">True</property>
+                <property name="can_focus">True</property>
+                <property name="receives_default">True</property>
+                <property name="use_action_appearance">False</property>
+                <property name="use_stock">True</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="fill">False</property>
+                <property name="position">1</property>
+              </packing>
             </child>
           </object>
           <packing>
@@ -146,8 +170,8 @@
                 <property name="obey_child">False</property>
                 <child>
                   <object class="GtkDrawingArea" id="result">
-                    <property name="width_request">640</property>
-                    <property name="height_request">480</property>
+                    <property name="width_request">320</property>
+                    <property name="height_request">240</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
                     <signal name="expose-event" handler="on_result_expose_event" swapped="no"/>
@@ -169,5 +193,9 @@
         </child>
       </object>
     </child>
+    <action-widgets>
+      <action-widget response="-5">button_ok</action-widget>
+      <action-widget response="-6">button_cancel</action-widget>
+    </action-widgets>
   </object>
 </interface>

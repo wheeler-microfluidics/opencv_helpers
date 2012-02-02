@@ -4,6 +4,7 @@ import random
 import gtk
 import numpy as np
 from path import path
+from pygtkhelpers.ui.dialogs import yesno
 
 from safe_cv import cv
 from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\
@@ -36,8 +37,12 @@ class RegistrationDemoGUI:
     def run(self):
         self.reset()
         response = self.window.run()
+        if response == gtk.RESPONSE_OK:
+            results = self.registration.map_mat
+        else:
+            results = None
         self.window.hide()
-        return response
+        return results
 
     def _get_warped_image(self, width=None, height=None):
         if self.in_file2 is None:
@@ -80,7 +85,7 @@ class RegistrationDemoGUI:
 
     def on_image_registered(self, *args):
         # Image has been registered, prompt to see if we should apply.
-        response = self.question("Four points have been registered.  Would you like to apply?")
+        response = yesno("Four points have been registered.  Would you like to apply?")
         if response == gtk.RESPONSE_YES:
             self.registration.trigger_event(AskToKeep.REGISTER_OK)
         else:
@@ -112,6 +117,8 @@ class RegistrationDemoGUI:
     def draw_cv_to_pixmap(self, image_name):
         image = self.images[image_name]
         x, y, width, height = self.areas[image_name].get_allocation()
+        if image.width != width or image.height != height:
+            image = self.get_resized(image, width, height)
         self.pixbufs[image_name] = gtk.gdk.pixbuf_new_from_data(
             image.tostring(), gtk.gdk.COLORSPACE_RGB, False,
             8, width, height, width * 3)
@@ -170,26 +177,6 @@ class RegistrationDemoGUI:
     def on_window_destroy(self, *args, **kwargs):
         gtk.main_quit()
 
-    def question(self, message, title=""):
-        dialog = gtk.MessageDialog(self.window, 
-                                   gtk.DIALOG_DESTROY_WITH_PARENT,
-                                   gtk.MESSAGE_QUESTION,
-                                   gtk.BUTTONS_YES_NO, message)
-        dialog.set_title(title)
-        result = dialog.run()
-        dialog.destroy()
-        return result
-
-    def info(self, message, title=""):
-        dialog = gtk.MessageDialog(self.window, 
-                                   gtk.DIALOG_DESTROY_WITH_PARENT,
-                                   gtk.MESSAGE_INFO, 
-                                   gtk.BUTTONS_CLOSE, message)
-        dialog.set_title(title)
-        result = dialog.run()
-        dialog.destroy()
-        return result
-
 
 def parse_args():
     """Parses arguments, returns ``(options, args)``."""
@@ -224,6 +211,6 @@ if __name__ == '__main__':
         level=logging.INFO)
 
     gui = RegistrationDemoGUI(args.input_image, args.warped_image)
-    gui.run()
 
-    #gtk.main()
+    import numpy as np
+    print np.asarray(gui.run())
