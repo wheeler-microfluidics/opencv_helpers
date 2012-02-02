@@ -81,8 +81,12 @@ class States(object):
 
 
 class RegistrationDemoGUI:
-    def __init__(self, in_file):
+    def __init__(self, in_file, in_file2=None):
         self.in_file = path(in_file)
+        if in_file2:
+            self.in_file2 = path(in_file2)
+        else:
+            self.in_file2 = None
         self.builder = gtk.Builder()
         self.builder.add_from_file(os.path.join('glade', 'registration_demo.glade'))
         self.window = self.builder.get_object('window')
@@ -100,6 +104,18 @@ class RegistrationDemoGUI:
         self.pixbufs = {}
         self.reset()
 
+    def _get_warped_image(self, width=None, height=None):
+        if self.in_file2 is None:
+            # Rotate the original image by a random number of degrees
+            degrees = random.randint(0, 360)
+            image, map_mat = self.get_rotated(self.images['original'], degrees)
+        else:
+            image = cv.LoadImageM(self.in_file2)
+            cv.CvtColor(image, image, cv.CV_BGR2RGB)
+        if width and height:
+            image = self.get_resized(image, int(width), int(height))
+        return image
+
     def reset(self):
         im_original = cv.LoadImageM(self.in_file)
         cv.CvtColor(im_original, im_original, cv.CV_BGR2RGB)
@@ -107,9 +123,11 @@ class RegistrationDemoGUI:
         self.images['original'] = self.get_resized(im_original, width, height)
         self.draw_cv_to_pixmap('original')
 
-        degrees = random.randint(0, 360)
-        self.images['rotated'], map_mat = self.get_rotated(self.images['original'], degrees)
+        x, y, width, height = self.areas['rotated'].get_allocation()
+        self.images['rotated'] = self._get_warped_image(width, height)
         self.draw_cv_to_pixmap('rotated')
+
+        #self.draw_cv_to_pixmap('rotated')
         self.areas['original'].queue_draw()
         self.areas['rotated'].queue_draw()
         self.points = dict(original=[], rotated=[])
@@ -225,15 +243,38 @@ class RegistrationDemoGUI:
         dialog.destroy()
         return result
 
+def parse_args():
+    """Parses arguments, returns ``(options, args)``."""
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser(description="""\
+Demo of interactive 4-point image registration.""",
+                           )
+    parser.add_argument(dest='input_image', nargs=1, type=str)
+    parser.add_argument(dest='warped_image', nargs='?', type=str)
+    args = parser.parse_args()
+
+    if args.input_image:
+        args.input_image = path(args.input_image[0])
+    if args.warped_image:
+        args.warped_image = path(args.warped_image)
+
+    for f in (args.input_image, args.warped_image):
+        if f and not f.isfile():
+            parser.error('Could not open file: %s' % f)
+
+    return args
 
 if __name__ == '__main__':
     import logging
     import signal
     # ^C exits the application
     signal.signal(signal.SIGINT, signal.SIG_DFL)
+
+    args = parse_args()
     logging.basicConfig(format='%(asctime)s %(message)s',
         level=logging.INFO)
 
-    gui = RegistrationDemoGUI('grid.jpg')
+    gui = RegistrationDemoGUI(args.input_image, args.warped_image)
 
     gtk.main()
