@@ -120,9 +120,15 @@ class FrameGrabberGUI:
                 % (type(frame), (height, width, channels, depth)))
             gtk_frame = array2cv(frame)
             cv.CvtColor(gtk_frame, gtk_frame, cv.CV_BGR2RGB)
+            x, y, a_width, a_height = self.area.get_allocation()
+            if a_width != width or a_height != height:
+                resized = cv.CreateMat(width, height, cv.CV_8UC3)
+                cv.Resize(gtk_frame, resized)
+            else:
+                resized = gtk_frame
             self.pixbuf = gtk.gdk.pixbuf_new_from_data(
-                gtk_frame.tostring(), gtk.gdk.COLORSPACE_RGB, False,
-                depth, width, height, gtk_frame.step)
+                resized.tostring(), gtk.gdk.COLORSPACE_RGB, False,
+                depth, width, height, height * 3) #resized.step)
             self.pixmap, mask = self.pixbuf.render_pixmap_and_mask()
             cairo = self.pixmap.cairo_create()
         elif self.pixmap is not None:

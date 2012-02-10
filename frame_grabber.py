@@ -114,7 +114,7 @@ class FrameGrabberChild(object):
                     np_frame = np.asarray(mat)
                     self.conn.send(['frame', np_frame])
                     frames_captured += 1
-            sleep(0.001)
+            sleep(1/35.)
         self.conn.send(('results', dict(frames_captured=frames_captured,
                                 start_time=start_time,
                                 stop_time=stop_time)))
