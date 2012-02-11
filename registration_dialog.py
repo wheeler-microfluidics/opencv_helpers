@@ -1,4 +1,5 @@
 import os
+import sys
 import random
 
 import gtk
@@ -10,10 +11,11 @@ from safe_cv import cv
 from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\
                                 IMAGE_CLICK, CANCEL, AskToKeep
 
+
 class RegistrationDialog(object):
     def __init__(self):
         self.builder = gtk.Builder()
-        self.builder.add_from_file(os.path.join('glade', 'registration_demo.glade'))
+        self.builder.add_from_file(self.get_glade_path())
         self.window = self.builder.get_object('dialog')
         self.label_info = self.builder.get_object('label_info')
         self.areas = dict(
@@ -43,6 +45,9 @@ class RegistrationDialog(object):
             results = None
         self.window.hide()
         return results
+
+    def get_glade_path(self):
+        return path('glade').joinpath('registration_demo.glade')
 
     def get_original_image(self):
         raise NotImplementedError
