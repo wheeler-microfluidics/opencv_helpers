@@ -24,7 +24,8 @@ class WaitCairoClick(StateWithCallback):
         if not hasattr(event, 'cairo_context'):
             return
         # Draw label on image at point
-        event.cairo_context.rectangle(event.point.x, event.point.y, 10, 10)
+        event.cairo_context.rectangle(event.cairo_point.x, event.cairo_point.y,
+                10, 10)
         event.cairo_context.set_source_rgb(*self.colour)
         event.cairo_context.fill_preserve()
         event.cairo_context.set_source_rgb(1, 1, 1)

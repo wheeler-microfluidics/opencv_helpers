@@ -1,3 +1,4 @@
+from __future__ import division
 import os
 import sys
 import random
@@ -48,6 +49,14 @@ class RegistrationDialog(object):
 
     def get_glade_path(self):
         return path('glade').joinpath('registration_demo.glade')
+
+    def translate_coords(self, coords, name):
+        coords = Point(*coords)
+        width = self.images[name].width
+        height = self.images[name].height
+        x, y, area_width, area_height = self.areas[name].get_allocation()
+        return Point(coords.x / area_width * width,
+                coords.y / area_height * height)
 
     def get_original_image(self):
         raise NotImplementedError
@@ -142,11 +151,13 @@ class RegistrationDialog(object):
     def on_rotated_button_press_event(self, widget, event):
         self.registration.trigger_event(IMAGE_CLICK,
             cairo_context=widget.window.cairo_create(),
-            point=Point(*event.get_coords()))
+            point=Point(*self.translate_coords(event.get_coords(), 'rotated')),
+            cairo_point=Point(*event.get_coords()))
         return False
 
     def on_original_button_press_event(self, widget, event):
         self.registration.trigger_event(OVERLAY_CLICK,
             cairo_context=widget.window.cairo_create(),
-            point=Point(*event.get_coords()))
+            point=Point(*self.translate_coords(event.get_coords(), 'original')),
+            cairo_point=Point(*event.get_coords()))
         return False
