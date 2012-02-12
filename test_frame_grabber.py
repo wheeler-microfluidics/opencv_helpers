@@ -65,7 +65,7 @@ def array2cv(a):
 
 
 class FrameGrabberGUI:
-    def __init__(self):
+    def __init__(self, fps_limit=5.):
         self.builder = gtk.Builder()
         self.builder.add_from_file(os.path.join('glade', 'frame_grabber.glade'))
         self.window = self.builder.get_object('window')
@@ -80,6 +80,7 @@ class FrameGrabberGUI:
         self.pixbuf = None
         self.pixmap = None
         self.grabber.start()
+        self.grabber.set_fps_limit(fps_limit)
         self.video_enabled = False
 
     def on_button_start_clicked(self, *args, **kwargs):
@@ -150,6 +151,20 @@ class FrameGrabberGUI:
         del self.cam_cap
     
 
+def parse_args():
+    """Parses arguments, returns ``(options, args)``."""
+    from argparse import ArgumentParser
+
+    parser = ArgumentParser(description="""\
+Demo of interactive 4-point image registration.""",
+                           )
+    parser.add_argument(dest='fps_limit', nargs='?', type=float, default=5.,
+            help='Max frames per second to grab (default=%(default)s)')
+    args = parser.parse_args()
+
+    return args
+
+
 if __name__ == '__main__':
     import logging
     # ^C exits the application
@@ -158,7 +173,6 @@ if __name__ == '__main__':
         level=logging.INFO)
     args = parse_args()
 
-    gui = FrameGrabberGUI()
+    gui = FrameGrabberGUI(args.fps_limit)
 
     gtk.main()
-

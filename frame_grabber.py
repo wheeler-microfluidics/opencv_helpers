@@ -16,6 +16,7 @@ GNU General Public License for more details.
 You should have received a copy of the GNU General Public License
 along with Microdrop.  If not, see <http://www.gnu.org/licenses/>.
 """
+from __future__ import division
 import sys
 from time import sleep
 import Queue
@@ -80,6 +81,7 @@ class FrameGrabberChild(object):
             self.cam_cap.init_capture()
         except:
             self.cam_cap = None
+        self.fps_limit = 10.
         self.state = self.STATES['STOPPED']
         
     def main(self):
@@ -96,7 +98,8 @@ class FrameGrabberChild(object):
             if self.conn.poll():
                 command = self.conn.recv()
                 if command == 'stop':
-                    logging.getLogger('opencv.frame_grabber').info('stop recording')
+                    logging.getLogger('opencv.frame_grabber')\
+                            .info('stop recording')
                     self.state = self.STATES['STOPPED']
                     stop_time = datetime.now()
                     break
@@ -104,6 +107,11 @@ class FrameGrabberChild(object):
                     logging.getLogger('opencv.frame_grabber').info('recording')
                     self.state = self.STATES['RECORDING']
                     start_time = datetime.now()
+                elif len(command) == 2 and command[0] == 'set_fps_limit':
+                    logging.getLogger('opencv.frame_grabber')\
+                            .info('setting fps_limit: %s' % command[1])
+                    if self.fps_limit >= 1:
+                        self.fps_limit = command[1]
             if self.cam_cap is not None\
             and self.state == self.STATES['RECORDING']:
                 frame = self.cam_cap.get_frame()
@@ -114,7 +122,7 @@ class FrameGrabberChild(object):
                     np_frame = np.asarray(mat)
                     self.conn.send(['frame', np_frame])
                     frames_captured += 1
-            sleep(1/35.)
+            sleep(1 / self.fps_limit)
         self.conn.send(('results', dict(frames_captured=frames_captured,
                                 start_time=start_time,
                                 stop_time=stop_time)))
@@ -166,6 +174,11 @@ class FrameGrabber(object):
             if self.frame_callback:
                 self.frame_callback(self.current_frame)
         return self.enabled
+
+    def set_fps_limit(self, fps_limit):
+        if self.child is None:
+            return
+        self.conn.send(('set_fps_limit', fps_limit))
 
     def start(self):
         if self.child is None:
