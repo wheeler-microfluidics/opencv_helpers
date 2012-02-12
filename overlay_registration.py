@@ -134,31 +134,13 @@ class WaitImageClickD(WaitImageClick):
     def on_image_click(self, event):
         super(WaitImageClickD, self).on_image_click(event)
         cv.GetPerspectiveTransform(self.overlay_points, self.image_points, self.map_mat)
-
-    @staticmethod
-    def transitions():
-        return {
-            IMAGE_CLICK : AskToKeep,
-            CANCEL : Canceled
-        }
-
-
-class AskToKeep(statepy.state.State):
-    REGISTER_OK = statepy.state.declareEventType('on_register_ok')
-
-    def enter(self):
         if self.on_registered:
             self.on_registered()
 
-    def on_register_ok(self, event):
-        if self.on_accepted:
-            self.on_accepted()
-
     @staticmethod
     def transitions():
         return {
-            # Moves us to the WaitImageClick state
-            AskToKeep.REGISTER_OK : Done, 
+            IMAGE_CLICK : Done,
             CANCEL : Canceled
         }
 
@@ -181,7 +163,7 @@ class ImageRegistrationTask(object):
             on_overlay_point=None,
             on_image_point=None,
             on_registered=None,
-            on_accepted=None, on_canceled=None):
+            on_canceled=None):
         # Need to use an array for current_point or changes from a State
         # would not persist.
         self.map_mat = cv.CreateMat(3, 3, cv.CV_32FC1)
@@ -192,7 +174,6 @@ class ImageRegistrationTask(object):
             on_overlay_point=on_overlay_point,
             on_image_point=on_image_point,
             on_registered=on_registered,
-            on_accepted=on_accepted,
             on_canceled=on_canceled)
         self.machine = statepy.state.Machine(statevars=self.state)
 
@@ -215,7 +196,6 @@ class ImageRegistrationTask(object):
         for i in range(4):
             self.trigger_event(OVERLAY_CLICK, point=Point(i, i))
             self.trigger_event(IMAGE_CLICK, point=Point(i, i))
-        self.trigger_event(AskToKeep.REGISTER_OK)
 
         current_state = self.machine.currentState()
         assert(current_state is None)

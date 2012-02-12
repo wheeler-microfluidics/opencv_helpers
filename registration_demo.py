@@ -8,7 +8,7 @@ from pygtkhelpers.ui.dialogs import yesno
 
 from safe_cv import cv
 from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\
-                                IMAGE_CLICK, CANCEL, AskToKeep
+                                IMAGE_CLICK, CANCEL
 from registration_dialog import RegistrationDialog
 
 

@@ -10,7 +10,7 @@ from pygtkhelpers.ui.dialogs import yesno
 
 from safe_cv import cv
 from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\
-                                IMAGE_CLICK, CANCEL, AskToKeep
+                                IMAGE_CLICK, CANCEL
 
 
 class RegistrationDialog(object):
@@ -34,7 +34,6 @@ class RegistrationDialog(object):
                     on_overlay_point=lambda x: self.label_info.set_text(x),
                     on_image_point=lambda x: self.label_info.set_text(x),
                     on_registered=self.on_image_registered,
-                    on_accepted=self.on_image_accepted,
                     on_canceled=self.on_canceled)
 
     def run(self):
@@ -78,15 +77,7 @@ class RegistrationDialog(object):
             self.areas[i].queue_draw()
 
     def on_image_registered(self, *args):
-        # Image has been registered, prompt to see if we should apply.
-        response = yesno("Four points have been registered.  Would you like to apply?")
-        if response == gtk.RESPONSE_YES:
-            self.registration.trigger_event(AskToKeep.REGISTER_OK)
-        else:
-            self.registration.trigger_event(CANCEL)
-
-    def on_image_accepted(self, *args):
-        # Image has been accepted, apply transformation.
+        # Image has been registered, apply transformation.
         self.images['result'] = self.registration.get_corrected_image(self.images['rotated'])
         self.draw_cv_to_pixmap('result')
         #for i in ['original', 'rotated', 'result']:
