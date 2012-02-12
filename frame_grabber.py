@@ -109,7 +109,7 @@ class FrameGrabberChild(object):
                     start_time = datetime.now()
                 elif len(command) == 2 and command[0] == 'set_fps_limit':
                     logging.getLogger('opencv.frame_grabber')\
-                            .info('setting fps_limit: %s' % command[1])
+                            .debug('setting fps_limit: %s' % command[1])
                     if self.fps_limit >= 1:
                         self.fps_limit = command[1]
             if self.cam_cap is not None\

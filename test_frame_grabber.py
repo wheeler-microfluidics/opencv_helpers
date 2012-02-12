@@ -83,6 +83,9 @@ class FrameGrabberGUI:
         self.grabber.set_fps_limit(fps_limit)
         self.video_enabled = False
 
+    def on_fps_limit_spinner_value_changed(self, button):
+        self.grabber.set_fps_limit(button.get_value())
+
     def on_button_start_clicked(self, *args, **kwargs):
         self.video_enabled = True
 
