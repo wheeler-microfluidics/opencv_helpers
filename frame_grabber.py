@@ -94,10 +94,22 @@ class FrameGrabberChild(object):
         frames_captured = 0
         start_time = None
         stop_time = None
+        watch_time = datetime.now()
         while True:
+            now = datetime.now()
+            if (now - watch_time).total_seconds() > 5:
+                # No watchdog reset in the last 5 seconds.  Assume that main
+                # thread is gone.
+                print '''
+                 No watchdog reset in the last 5 seconds.  Assume that main
+                 thread is gone.
+                 '''
+                return
             if self.conn.poll():
                 command = self.conn.recv()
-                if command == 'stop':
+                if command == 'reset_watchdog':
+                    watch_time = now
+                elif command == 'stop':
                     logging.getLogger('opencv.frame_grabber')\
                             .info('stop recording')
                     self.state = self.STATES['STOPPED']
@@ -137,6 +149,7 @@ class FrameGrabber(object):
         else:
             self.child = None
         self.timer_id = None
+        self.watchdog_timer = None
         self.enabled = False
         self.last_result = None
         self.current_frame = None
@@ -164,6 +177,12 @@ class FrameGrabber(object):
         child = FrameGrabberChild(self.child_conn, self.cam_cap)
         child.main()
 
+    def _reset_watchdog(self):
+        if self.child is None:
+            return
+        self.conn.send('reset_watchdog')
+        return True
+
     def _grab_frame(self):
         frame = None
         while self.enabled and self.conn.poll():
@@ -184,11 +203,14 @@ class FrameGrabber(object):
         if self.child is None:
             self.child = self._launch_child()
         logging.getLogger('opencv.frame_grabber').info('request start: %s' % datetime.now())
+        self.watchdog_timer = gobject.timeout_add(2500, self._reset_watchdog)
         self.conn.send('start')
         self.enabled = True
         self.timer_id = gobject.timeout_add(10, self._grab_frame)
 
     def stop(self):
+        if self.watchdog_timer is not None:
+            gobject.source_remove(self.watchdog_timer)
         if self.timer_id is not None:
             gobject.source_remove(self.timer_id)
         self.enabled = False
