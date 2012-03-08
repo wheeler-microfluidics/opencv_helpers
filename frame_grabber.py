@@ -97,6 +97,7 @@ class FrameGrabberChild(object):
         watch_time = datetime.now()
         while True:
             now = datetime.now()
+            """
             if (now - watch_time).total_seconds() > 5:
                 # No watchdog reset in the last 5 seconds.  Assume that main
                 # thread is gone.
@@ -105,6 +106,7 @@ class FrameGrabberChild(object):
                  thread is gone.
                  '''
                 return
+            """
             if self.conn.poll():
                 command = self.conn.recv()
                 if command == 'reset_watchdog':
