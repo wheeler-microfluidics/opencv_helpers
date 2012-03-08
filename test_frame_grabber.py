@@ -113,7 +113,7 @@ class FrameGrabberGUI:
         cairo.rectangle(300, 300, 100, 100)
         cairo.fill()
 
-    def update_frame_data(self, frame):
+    def update_frame_data(self, frame, frame_time):
         cairo = None
         if self.video_enabled:
             # Process NumPy array frame data

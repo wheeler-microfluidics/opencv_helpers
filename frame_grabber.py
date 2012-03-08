@@ -127,14 +127,15 @@ class FrameGrabberChild(object):
                     if self.fps_limit >= 1:
                         self.fps_limit = command[1]
             if self.cam_cap is not None\
-            and self.state == self.STATES['RECORDING']:
+                    and self.state == self.STATES['RECORDING']:
+                grab_time = datetime.now()
                 frame = self.cam_cap.get_frame()
                 if frame:
                     # Convert frame to NumPy array so it can be pickled/sent
                     # to parent process.
                     mat = cv.GetMat(frame)
                     np_frame = np.asarray(mat)
-                    self.conn.send(['frame', np_frame])
+                    self.conn.send(['frame', np_frame, grab_time])
                     frames_captured += 1
             sleep(1 / self.fps_limit)
         self.conn.send(('results', dict(frames_captured=frames_captured,
@@ -155,6 +156,7 @@ class FrameGrabber(object):
         self.enabled = False
         self.last_result = None
         self.current_frame = None
+        self.current_time = None
         self.frame_callback = None
 
     def _pipe_pull(self):
@@ -190,10 +192,10 @@ class FrameGrabber(object):
         while self.enabled and self.conn.poll():
             frame = self.conn.recv()
             if len(frame) > 0 and frame:
-                self.current_frame = frame[1]
+                self.current_frame, self.current_time = frame[1:]
         if frame is not None:
             if self.frame_callback:
-                self.frame_callback(self.current_frame)
+                self.frame_callback(self.current_frame, self.current_time)
         return self.enabled
 
     def set_fps_limit(self, fps_limit):
