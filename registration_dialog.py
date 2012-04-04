@@ -6,7 +6,6 @@ import random
 import gtk
 import numpy as np
 from path import path
-from pygtkhelpers.ui.dialogs import yesno
 
 from safe_cv import cv
 from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\
