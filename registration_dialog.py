@@ -139,25 +139,46 @@ class RegistrationDialog(object):
         self.reset()
 
     def on_original_motion_notify_event(self, widget, event):
-        x, y, width, height = self.areas['original'].get_allocation()
-        self.areas['original'].window.draw_drawable(
-                self.areas['original'].get_style().white_gc,
-                        self.pixmaps['original'], 0, 0, 0, 0, width, height)
-        self.pixmaps['original']
-        cairo_context = self.areas['original'].window.cairo_create()
+        self.draw_zoom('original', event)
 
-        cairo_context.rectangle(event.x, event.y, 100, 100)
-        #cairo_context.set_source_rgb(0, 1, 0)
-        #cairo_context.fill_preserve()
+    def on_rotated_motion_notify_event(self, widget, event):
+        self.draw_zoom('rotated', event)
+
+    def draw_zoom(self, name, event):
+        x, y, width, height = self.areas[name].get_allocation()
+        zoom_dims = Point(100, 100)
+        zoom_factor = 4
+        preview_offset = Point(25, 25)
+        zoom_pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, False, 8,
+                zoom_dims.x, zoom_dims.y)
+        #zoom_offset = Point(int(event.x) - 25, int(event.y) - 25)
+        zoom_offset = Point(int(event.x), int(event.y))
+        self.pixbufs[name].scale(zoom_pixbuf, 0, 0, zoom_dims.x,
+                zoom_dims.y, -zoom_factor * zoom_offset.x,
+                        -zoom_factor * zoom_offset.y, zoom_factor,
+                        zoom_factor, gtk.gdk.INTERP_NEAREST)
+        self.areas[name].window.draw_drawable(
+                self.areas[name].get_style().white_gc,
+                        self.pixmaps[name], 0, 0, 0, 0, width, height)
+        cairo_context = self.areas[name].window.cairo_create()
+
+        cairo_context.set_line_width(5)
+        cairo_context.rectangle(event.x - preview_offset.x,
+                event.y - preview_offset.y, 100, 100)
         cairo_context.set_source_rgb(1, 1, 1)
         cairo_context.stroke()
-        #self.areas['original'].queue_draw()
+        self.areas[name].window.draw_pixbuf(
+                self.areas[name].get_style().white_gc, zoom_pixbuf, 0, 0,
+                        zoom_offset.x - preview_offset.x,
+                                zoom_offset.y - preview_offset.y)
 
     def on_rotated_button_press_event(self, widget, event):
         self.registration.trigger_event(IMAGE_CLICK,
-            cairo_context=widget.window.cairo_create(),
+            #cairo_context=widget.window.cairo_create(),
+            cairo_context=self.pixmaps['rotated'].cairo_create(),
             point=Point(*self.translate_coords(event.get_coords(), 'rotated')),
             cairo_point=Point(*event.get_coords()))
+        widget.queue_draw()
         return False
 
     def on_original_button_press_event(self, widget, event):
