@@ -138,6 +138,21 @@ class RegistrationDialog(object):
     def on_button_reset_clicked(self, *args, **kwargs):
         self.reset()
 
+    def on_original_motion_notify_event(self, widget, event):
+        x, y, width, height = self.areas['original'].get_allocation()
+        self.areas['original'].window.draw_drawable(
+                self.areas['original'].get_style().white_gc,
+                        self.pixmaps['original'], 0, 0, 0, 0, width, height)
+        self.pixmaps['original']
+        cairo_context = self.areas['original'].window.cairo_create()
+
+        cairo_context.rectangle(event.x, event.y, 100, 100)
+        #cairo_context.set_source_rgb(0, 1, 0)
+        #cairo_context.fill_preserve()
+        cairo_context.set_source_rgb(1, 1, 1)
+        cairo_context.stroke()
+        #self.areas['original'].queue_draw()
+
     def on_rotated_button_press_event(self, widget, event):
         self.registration.trigger_event(IMAGE_CLICK,
             cairo_context=widget.window.cairo_create(),
@@ -147,7 +162,9 @@ class RegistrationDialog(object):
 
     def on_original_button_press_event(self, widget, event):
         self.registration.trigger_event(OVERLAY_CLICK,
-            cairo_context=widget.window.cairo_create(),
+            #cairo_context=widget.window.cairo_create(),
+            cairo_context=self.pixmaps['original'].cairo_create(),
             point=Point(*self.translate_coords(event.get_coords(), 'original')),
             cairo_point=Point(*event.get_coords()))
+        widget.queue_draw()
         return False

@@ -72,9 +72,10 @@
                     <property name="height_request">480</property>
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
-                    <property name="events">GDK_BUTTON_PRESS_MASK | GDK_STRUCTURE_MASK</property>
+                    <property name="events">GDK_POINTER_MOTION_MASK | GDK_BUTTON_PRESS_MASK | GDK_STRUCTURE_MASK</property>
                     <signal name="button-press-event" handler="on_original_button_press_event" swapped="no"/>
                     <signal name="expose-event" handler="on_original_expose_event" swapped="no"/>
+                    <signal name="motion-notify-event" handler="on_original_motion_notify_event" swapped="no"/>
                   </object>
                 </child>
               </object>
