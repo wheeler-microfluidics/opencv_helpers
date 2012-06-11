@@ -9,7 +9,7 @@ from path import path
 
 from safe_cv import cv
 from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\
-                                IMAGE_CLICK, CANCEL
+        IMAGE_CLICK, CANCEL, WaitOverlayClick, WaitImageClick
 
 
 class RegistrationDialog(object):
@@ -139,20 +139,25 @@ class RegistrationDialog(object):
         self.reset()
 
     def on_original_motion_notify_event(self, widget, event):
-        self.draw_zoom('original', event)
+        if isinstance(self.registration.machine.currentState(),
+                WaitOverlayClick):
+            self.draw_zoom('original', event)
 
     def on_rotated_motion_notify_event(self, widget, event):
-        self.draw_zoom('rotated', event)
+        if isinstance(self.registration.machine.currentState(),
+                WaitImageClick):
+            self.draw_zoom('rotated', event)
 
     def draw_zoom(self, name, event):
         x, y, width, height = self.areas[name].get_allocation()
         zoom_dims = Point(100, 100)
-        zoom_factor = 4
+        zoom_factor = 5
         preview_offset = Point(25, 25)
         zoom_pixbuf = gtk.gdk.Pixbuf(gtk.gdk.COLORSPACE_RGB, False, 8,
                 zoom_dims.x, zoom_dims.y)
         #zoom_offset = Point(int(event.x) - 25, int(event.y) - 25)
-        zoom_offset = Point(int(event.x), int(event.y))
+        zoom_offset = Point(int(event.x - preview_offset.x / zoom_factor),
+                int(event.y - preview_offset.y / zoom_factor))
         self.pixbufs[name].scale(zoom_pixbuf, 0, 0, zoom_dims.x,
                 zoom_dims.y, -zoom_factor * zoom_offset.x,
                         -zoom_factor * zoom_offset.y, zoom_factor,
@@ -163,8 +168,8 @@ class RegistrationDialog(object):
         cairo_context = self.areas[name].window.cairo_create()
 
         cairo_context.set_line_width(5)
-        cairo_context.rectangle(event.x - preview_offset.x,
-                event.y - preview_offset.y, 100, 100)
+        cairo_context.rectangle(zoom_offset.x - preview_offset.x,
+                zoom_offset.y - preview_offset.y, 100, 100)
         cairo_context.set_source_rgb(1, 1, 1)
         cairo_context.stroke()
         self.areas[name].window.draw_pixbuf(
