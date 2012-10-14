@@ -12,6 +12,9 @@ from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\
         IMAGE_CLICK, CANCEL, WaitOverlayClick, WaitImageClick
 
 
+base_path = path(__file__).abspath().parent
+
+
 class RegistrationDialog(object):
     def __init__(self):
         self.builder = gtk.Builder()
@@ -46,7 +49,9 @@ class RegistrationDialog(object):
         return results
 
     def get_glade_path(self):
-        return path('glade').joinpath('registration_demo.glade')
+        glade_path = base_path.joinpath('glade', 'registration_demo.glade')
+        print '[get_glade_path] {}'.format(glade_path)
+        return glade_path
 
     def translate_coords(self, coords, name):
         coords = Point(*coords)
@@ -100,7 +105,7 @@ class RegistrationDialog(object):
             8, width, height, width * 3)
         self.pixmaps[image_name], mask =\
             self.pixbufs[image_name].render_pixmap_and_mask()
-    
+
     def get_resized(self, in_image, width, height):
         #print 'get_resized width=%s height=%s'\
             #% (width, height)
