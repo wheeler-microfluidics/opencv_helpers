@@ -1,24 +1,33 @@
 from __future__ import division
-import os
 import sys
-import random
 
 import gtk
-import numpy as np
 from path import path
 
 from safe_cv import cv
 from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\
-        IMAGE_CLICK, CANCEL, WaitOverlayClick, WaitImageClick
+        IMAGE_CLICK, WaitOverlayClick, WaitImageClick
 
 
-base_path = path(__file__).abspath().parent
+def base_path():
+    # When executing from a frozen (pyinstaller) executable...
+    if hasattr(sys, 'frozen'):
+        return path(sys.executable).parent
+
+    # Otherwise...
+    try:
+        script = path(__file__)
+    except NameError:
+        script = path(sys.argv[0])
+    return script.parent
+
 
 
 class RegistrationDialog(object):
     def __init__(self):
         self.builder = gtk.Builder()
-        self.builder.add_from_file(self.get_glade_path())
+        glade_path = base_path().joinpath('glade', 'registration_demo.glade')
+        self.builder.add_from_file(glade_path)
         self.window = self.builder.get_object('dialog')
         self.label_info = self.builder.get_object('label_info')
         self.areas = dict(
@@ -47,11 +56,6 @@ class RegistrationDialog(object):
             results = None
         self.window.hide()
         return results
-
-    def get_glade_path(self):
-        glade_path = base_path.joinpath('glade', 'registration_demo.glade')
-        print '[get_glade_path] {}'.format(glade_path)
-        return glade_path
 
     def translate_coords(self, coords, name):
         coords = Point(*coords)
