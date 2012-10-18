@@ -11,7 +11,7 @@ except ImportError:
 
 kw = {
     'name': "opencv",
-    'version': "{{ ___VERSION___ }}",
+    'version': "1.0",
     'description': 'Helper functions for opencv',
     'author': "Christian Fobel",
     'author_email': "christian@fobel.net",
