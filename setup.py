@@ -10,17 +10,17 @@ except ImportError:
 # Setup script for path
 
 kw = {
-    'name': "opencv",
+    'name': "opencv_helpers",
     'version': "1.0",
     'description': 'Helper functions for opencv',
     'author': "Christian Fobel",
     'author_email': "christian@fobel.net",
     'url': "https://github.com/cfobel/python___opencv_examples",
     'license': "GPLv2 License",
-    'packages': ['opencv'],
+    'packages': ['opencv_helpers'],
     'cmdclass': dict(build_py=build_py),
-    'package_data': {'opencv': ['statepy/*.py', 'statepy/test/*', 'cvwin/*',
-                                'glade/*']}
+    'package_data': {'opencv_helpers': ['statepy/*.py', 'statepy/test/*',
+                            'cvwin/*', 'glade/*']}
 }
 
 
