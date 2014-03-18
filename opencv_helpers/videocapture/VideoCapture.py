@@ -47,7 +47,7 @@ class Device:
 
         """
         self.dev = vidcap.new_Dev(devnum, showVideoWindow)
-        from path import path
+        from path_helpers import path
         import os
 
         here = path(__file__).parent.abspath()

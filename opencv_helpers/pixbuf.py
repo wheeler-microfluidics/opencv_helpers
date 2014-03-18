@@ -2,7 +2,7 @@
 import gtk
 from safe_cv import cv
 import numpy as np
-from path import path
+from path_helpers import path
 
 
 def parse_args():

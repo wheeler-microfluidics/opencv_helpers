@@ -1,6 +1,6 @@
 from time import sleep
 
-from path import path
+from path_helpers import path
 
 from recorder import Recorder, CVCaptureConfig
 

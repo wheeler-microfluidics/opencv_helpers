@@ -2,7 +2,7 @@ from __future__ import division
 import sys
 
 import gtk
-from path import path
+from path_helpers import path
 
 from safe_cv import cv
 from overlay_registration import ImageRegistrationTask, Point, OVERLAY_CLICK,\

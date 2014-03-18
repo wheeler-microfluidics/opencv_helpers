@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 from safe_cv import cv
 import numpy as np
-from path import path
+from path_helpers import path
 
 
 def overlay_subrect(in_file):

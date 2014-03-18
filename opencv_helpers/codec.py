@@ -3,7 +3,7 @@ import os
 from urllib import urlopen
 from collections import namedtuple
 
-from path import path
+from path_helpers import path
 
 from silence import Silence
 from safe_cv import cv

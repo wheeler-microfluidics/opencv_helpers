@@ -3,7 +3,7 @@ import sys
 import os
 import tempfile
 
-from path import path
+from path_helpers import path
 
 from safe_cv import cv
 from silence import Silence

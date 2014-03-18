@@ -26,7 +26,7 @@ import os
 import numpy as np
 import gtk
 import gobject
-from path import path
+from path_helpers import path
 
 from safe_cv import cv
 from frame_grabber import FrameGrabber, CVCaptureConfig

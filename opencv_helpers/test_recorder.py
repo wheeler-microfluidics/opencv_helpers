@@ -3,7 +3,7 @@ from time import sleep
 from contextlib import closing
 from StringIO import StringIO
 
-from path import path
+from path_helpers import path
 
 from silence import Silence
 from recorder import Recorder, CVCaptureConfig, RecordFrameRateInfo

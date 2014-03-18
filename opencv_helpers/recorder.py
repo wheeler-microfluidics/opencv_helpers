@@ -10,7 +10,7 @@ import os
 import tempfile
 import logging
 
-from path import path, pickle
+from path_helpers import path, pickle
 import numpy as np
 
 from video import cv, CVCaptureProperties

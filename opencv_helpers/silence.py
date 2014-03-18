@@ -4,7 +4,7 @@ import sys
 from StringIO import StringIO
 from tempfile import NamedTemporaryFile, mkstemp
 
-from path import path
+from path_helpers import path
 
 class Silence:
     """Context manager which uses low-level file descriptors to suppress

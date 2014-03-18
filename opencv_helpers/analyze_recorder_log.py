@@ -1,4 +1,4 @@
-from path import path
+from path_helpers import path
 
 
 def plot_frames(in_file, start_point=0, end_point=-1):
