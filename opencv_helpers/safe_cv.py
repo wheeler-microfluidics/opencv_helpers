@@ -5,3 +5,4 @@ if os.name == 'nt':
     cv = cv2.cv
 else:
     import cv
+    import cv2
